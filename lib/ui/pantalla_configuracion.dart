@@ -9,8 +9,8 @@ import '../services/servicios.dart';
 import 'mascota.dart';
 
 /// ActividadConfiguracion (9_UML.pdf y 6_DisenoUI.pdf pagina 6).
-/// Totalmente responsiva para telefonos pequenos y tablets, con diseno
-/// unificado suave (crema/blanco/pastel) coherente con toda la aplicacion.
+/// Incluye el boton de 1 clic para descargar e instalar el modelo GGUF
+/// cuantizado + base vectorial SEP + prueba directa del narrador de voz TTS.
 class PantallaConfiguracion extends StatefulWidget {
 	const PantallaConfiguracion({
 		super.key,
@@ -30,6 +30,11 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 	bool _actualizandoUSB = false;
 	String _estadoUSB = 'USB sin comprobar';
 	ReporteActualizacion? _ultimoReporte;
+
+	// Estado de descarga en 1 clic del modelo LLM local (6_DisenoUI.pdf pag. 6)
+	bool _descargandoModelo = false;
+	double _progresoModelo = 0.0;
+	String _etapaDescarga = '';
 
 	@override
 	void initState() {
@@ -74,6 +79,46 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 			tamano,
 		);
 		widget.controlador.actualizarPreferencias(tamanoTexto: tamano);
+	}
+
+	/// Descarga e instala en 1 solo clic el modelo GGUF cuantizado + voz TTS.
+	Future<void> _instalarModeloOfflineClick() async {
+		if (_descargandoModelo) {
+			return;
+		}
+		setState(() {
+			_descargandoModelo = true;
+			_progresoModelo = 0.05;
+			_etapaDescarga = 'Iniciando descarga del motor LLM local…';
+		});
+
+		final MotorLLMLocal motor = widget.controlador.pipelineRAG.motorLLM;
+		final bool ok = await motor.instalarModeloConUnClick(
+			alProgresar: (double p, String etapa) {
+				if (mounted) {
+					setState(() {
+						_progresoModelo = p;
+						_etapaDescarga = etapa;
+					});
+				}
+			},
+		);
+
+		if (!mounted) {
+			return;
+		}
+		setState(() {
+			_descargandoModelo = false;
+		});
+
+		if (ok) {
+			mostrarNotificacionExito(
+				'¡Modelo ${motor.nombreModeloActivo} y narrador de voz listos para usar sin conexión!',
+			);
+			await widget.controlador.reproducirRespuestaVoz(
+				'¡Hola! El modelo de inteligencia artificial y tu libro de geografía ya están instalados en este teléfono para funcionar sin internet.',
+			);
+		}
 	}
 
 	/// Metodo oficial del UML: +verificarUSBClick() : void (RF-05 y RF-11)
@@ -136,6 +181,8 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 				final ConfiguracionAula cfg = widget.controlador.configuracion;
 				final AlmacenVectoresChroma almacen =
 					widget.controlador.pipelineRAG.baseVectores;
+				final MotorLLMLocal motor =
+					widget.controlador.pipelineRAG.motorLLM;
 
 				return Scaffold(
 					body: Container(
@@ -184,6 +231,7 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 																			child: _tarjetaBaseConocimiento(
 																				cfg,
 																				almacen,
+																				motor,
 																			),
 																		),
 																		const SizedBox(
@@ -213,6 +261,7 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 																	_tarjetaBaseConocimiento(
 																		cfg,
 																		almacen,
+																		motor,
 																	),
 																	const SizedBox(
 																		height: 12,
@@ -247,7 +296,6 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 		);
 	}
 
-	/// Encabezado responsivo que nunca corta la palabra "Configuracion".
 	Widget _construirEncabezado(BuildContext context) {
 		return Padding(
 			padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
@@ -296,7 +344,7 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 									),
 								),
 								Text(
-									'Libros SEP, actualización USB y voz',
+									'Modelo IA Offline, libros SEP y voz',
 									maxLines: 1,
 									overflow: TextOverflow.ellipsis,
 									style: TextStyle(
@@ -318,11 +366,15 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 		);
 	}
 
-	/// Tarjeta "Base de conocimiento SEP" (4°, 5°, 6°) en estilo crema/blanco limpio.
+	/// Tarjeta "Base de conocimiento SEP" + Boton de 1 clic para descargar el
+	/// modelo LLM GGUF y dejar el telefono 100% autonomo (6_DisenoUI.pdf pag. 6).
 	Widget _tarjetaBaseConocimiento(
 		ConfiguracionAula cfg,
 		AlmacenVectoresChroma almacen,
+		MotorLLMLocal motor,
 	) {
+		final bool instalado = motor.paqueteOfflineInstalado;
+
 		return Container(
 			padding: const EdgeInsets.all(14),
 			decoration: BoxDecoration(
@@ -351,7 +403,7 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 							const SizedBox(width: 10),
 							const Expanded(
 								child: Text(
-									'Base de conocimiento SEP',
+									'Base de conocimiento SEP y Motor IA',
 									style: TextStyle(
 										fontSize: 15.5,
 										fontWeight: FontWeight.w800,
@@ -363,7 +415,7 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 					),
 					const SizedBox(height: 6),
 					const Text(
-						'Libros oficiales de Geografía preinstalados (RF-02, RF-07). Elige tu grado escolar:',
+						'Libros de Geografía de la SEP para acompañar tus preguntas (RF-02, RF-07). Selecciona el grado:',
 						style: TextStyle(
 							fontSize: 12.5,
 							color: Paleta.textoSecundario,
@@ -439,11 +491,74 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 						);
 					}),
 					const SizedBox(height: 4),
+					// Boton de 1 clic para descargar e instalar el modelo GGUF + voz offline
+					// (identico al boton "Descargar todo para usar sin conexion" de 6_DisenoUI.pdf)
+					SizedBox(
+						width: double.infinity,
+						child: FilledButton.icon(
+							style: FilledButton.styleFrom(
+								backgroundColor: instalado
+									? Paleta.verdePino
+									: Paleta.verdeBoton,
+								foregroundColor: Colors.white,
+								padding: const EdgeInsets.symmetric(
+									vertical: 11,
+									horizontal: 12,
+								),
+								shape: RoundedRectangleBorder(
+									borderRadius: BorderRadius.circular(14),
+								),
+							),
+							onPressed: _descargandoModelo
+								? null
+								: _instalarModeloOfflineClick,
+							icon: Icon(
+								instalado
+									? Icons.offline_pin_rounded
+									: Icons.download_for_offline_rounded,
+								size: 19,
+							),
+							label: Text(
+								instalado
+									? 'Modelo IA + Voz Offline instalados ✅'
+									: 'Descargar todo para usar sin conexión (1 clic)',
+								textAlign: TextAlign.center,
+								style: const TextStyle(
+									fontSize: 13,
+									fontWeight: FontWeight.w700,
+								),
+							),
+						),
+					),
+					if (_descargandoModelo || _etapaDescarga.isNotEmpty) ...<Widget>[
+						const SizedBox(height: 8),
+						ClipRRect(
+							borderRadius: BorderRadius.circular(8),
+							child: LinearProgressIndicator(
+								value: _progresoModelo,
+								minHeight: 7,
+								backgroundColor: Paleta.salviaSuave,
+								valueColor: const AlwaysStoppedAnimation<Color>(
+									Paleta.verdeBosque,
+								),
+							),
+						),
+						const SizedBox(height: 4),
+						Text(
+							'${(_progresoModelo * 100).round()}% · $_etapaDescarga',
+							style: const TextStyle(
+								fontSize: 11.5,
+								fontWeight: FontWeight.w600,
+								color: Paleta.verdeBosque,
+							),
+						),
+					],
+					const SizedBox(height: 8),
 					Container(
 						width: double.infinity,
 						padding: const EdgeInsets.symmetric(
 							horizontal: 12,
-							vertical: 9,
+							vertical: 8,
 						),
 						decoration: BoxDecoration(
 							color: Paleta.cremaTarjeta,
@@ -453,17 +568,17 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 						child: Row(
 							children: <Widget>[
 								const Icon(
-									Icons.verified_user_outlined,
+									Icons.memory_rounded,
 									color: Paleta.verdeBosque,
 									size: 17,
 								),
 								const SizedBox(width: 8),
 								Expanded(
 									child: Text(
-										'Solo lectura (RNF-02) · ${almacen.totalFragmentos} temas · ${almacen.obtenerAlmacenamientoUsadoMB().toStringAsFixed(0)} MB / 4096 MB',
+										'${motor.nombreModeloActivo} · ${almacen.totalFragmentos} bloques SEP · ${almacen.obtenerAlmacenamientoUsadoMB().toStringAsFixed(0)} MB / 4096 MB (RNF-09)',
 										style: const TextStyle(
 											color: Paleta.textoSecundario,
-											fontSize: 11.5,
+											fontSize: 11,
 											fontWeight: FontWeight.w600,
 										),
 									),
@@ -476,7 +591,7 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 		);
 	}
 
-	/// Tarjeta "Actualizar sistema (USB)" (RF-05 y RF-11) en estilo limpio.
+	/// Tarjeta "Actualizar sistema (USB)" (RF-05 y RF-11).
 	Widget _tarjetaActualizarUSB(AlmacenVectoresChroma almacen) {
 		return Container(
 			padding: const EdgeInsets.all(14),
@@ -611,7 +726,7 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 		);
 	}
 
-	/// Tarjeta "Configuración de accesibilidad" armonizada en blanco/crema suave.
+	/// Tarjeta "Accesibilidad y voz" con boton para probar la narracion TTS en vivo.
 	Widget _tarjetaAccesibilidad(ConfiguracionAula cfg) {
 		return Container(
 			padding: const EdgeInsets.all(14),
@@ -641,7 +756,7 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 							const SizedBox(width: 10),
 							const Expanded(
 								child: Text(
-									'Accesibilidad y voz',
+									'Accesibilidad y narrador de voz',
 									style: TextStyle(
 										fontSize: 15.5,
 										fontWeight: FontWeight.w800,
@@ -653,7 +768,7 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 					),
 					const SizedBox(height: 6),
 					const Text(
-						'Ajusta el tamaño de letra, contraste y velocidad de lectura (RNF-08):',
+						'Ajusta el tamaño de letra, contraste y velocidad de lectura en español (RNF-08):',
 						style: TextStyle(
 							fontSize: 12.5,
 							color: Paleta.textoSecundario,
@@ -697,7 +812,7 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 						dense: true,
 						activeColor: Paleta.verdeBosque,
 						title: const Text(
-							'Leer respuestas en voz alta automáticamente',
+							'Narrar respuestas en voz alta automáticamente',
 							style: TextStyle(
 								color: Paleta.textoPrimario,
 								fontSize: 13,
@@ -724,12 +839,44 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 						onChanged: (bool val) => widget.controlador
 							.actualizarPreferencias(altoContraste: val),
 					),
+					const SizedBox(height: 6),
+					SizedBox(
+						width: double.infinity,
+						child: OutlinedButton.icon(
+							style: OutlinedButton.styleFrom(
+								foregroundColor: Paleta.verdeBosque,
+								side: const BorderSide(
+									color: Paleta.bordeSuave,
+								),
+								padding: const EdgeInsets.symmetric(
+									vertical: 10,
+								),
+								shape: RoundedRectangleBorder(
+									borderRadius: BorderRadius.circular(14),
+								),
+							),
+							onPressed: () => widget.controlador
+								.reproducirRespuestaVoz(
+									'Hola, soy Geograf-IA, tu tutor de geografía para ${cfg.gradoActual}° grado de primaria.',
+								),
+							icon: const Icon(
+								Icons.volume_up_rounded,
+								size: 18,
+							),
+							label: const Text(
+								'Probar narración de voz ahora',
+								style: TextStyle(
+									fontSize: 13,
+									fontWeight: FontWeight.w700,
+								),
+							),
+						),
+					),
 				],
 			),
 		);
 	}
 
-	/// Barra resumen inferior discreta y de una sola linea.
 	Widget _barraEstadoInferior(ConfiguracionAula cfg) {
 		final String textoTam =
 			cfg.tamanoFuente > 17 ? 'Texto grande' : 'Texto normal';

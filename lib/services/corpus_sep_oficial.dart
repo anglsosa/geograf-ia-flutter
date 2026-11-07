@@ -19,7 +19,7 @@ class CorpusSepOficial {
 			textoContenido:
 				'volcán volcanes magma lava erupción cráter ceniza montaña relieve '
 				'interior de la tierra roca fundida caliente grietas corteza terrestre '
-				'cómo se forma un volcán popocatépetl fuego.',
+				'cómo se forma un volcán popocatépetl citlaltépetl paricutín fuego.',
 			explicacion4to:
 				'Bajo la Tierra hay roca muy caliente y fundida llamada magma. '
 				'Cuando el magma sube por las grietas del suelo y sale a la superficie, '
@@ -52,7 +52,7 @@ class CorpusSepOficial {
 			numeroPagina: 54,
 			textoContenido:
 				'por qué llueve lluvia nubes agua evaporación condensación precipitación '
-				'ciclo del agua sol calienta mar ríos vapor gotas tormenta clima.',
+				'ciclo del agua sol calienta mar ríos vapor gotas tormenta clima granizo nieve.',
 			explicacion4to:
 				'¡Llueve gracias al viaje del agua! Primero, el Sol calienta el agua de '
 				'los mares y ríos, y esta sube al cielo como vapor invisible. Allá arriba '
@@ -83,7 +83,7 @@ class CorpusSepOficial {
 			numeroPagina: 53,
 			textoContenido:
 				'a dónde van los ríos río agua dulce montañas cuenca vertiente mar '
-				'océano lagos lagunas corriente desemboca bravo usumacinta lerma.',
+				'océano lagos lagunas corriente desemboca bravo usumacinta grijalva lerma papaloapan.',
 			explicacion4to:
 				'Los ríos nacen en lo alto de las montañas cuando cae la lluvia o se '
 				'derrite el hielo. Como el agua siempre baja por las laderas, los ríos '
@@ -114,7 +114,7 @@ class CorpusSepOficial {
 			numeroPagina: 17,
 			textoContenido:
 				'por qué hay día y noche rotación traslación sol tierra gira eje '
-				'estaciones del año primavera verano otoño invierno 24 horas 365 días.',
+				'estaciones del año primavera verano otoño invierno 24 horas 365 días año bisiesto.',
 			explicacion4to:
 				'Tenemos día y noche porque la Tierra nunca deja de girar sobre sí misma, '
 				'como si fuera un trompo. La mitad de la Tierra que queda mirando al Sol '
@@ -146,7 +146,7 @@ class CorpusSepOficial {
 			numeroPagina: 19,
 			textoContenido:
 				'estados de méxico cuántos estados tiene méxico división política '
-				'entidades federativas capital fronteras municipios territorio puebla.',
+				'entidades federativas capital fronteras municipios territorio puebla república mexicana.',
 			explicacion4to:
 				'Nuestro país se llama Estados Unidos Mexicanos y está dividido en '
 				'32 entidades federativas: 31 estados y la Ciudad de México, que es '
@@ -178,7 +178,8 @@ class CorpusSepOficial {
 			numeroPagina: 29,
 			textoContenido:
 				'continentes del mundo cuántos continentes hay mapas océanos américa '
-				'europa asia áfrica oceanía antártida coordenadas escala rosa de los vientos.',
+				'europa asia áfrica oceanía antártida coordenadas escala rosa de los vientos '
+				'paralelos meridianos latitud longitud ecuador.',
 			explicacion4to:
 				'Las grandes extensiones de tierra del planeta se llaman continentes y '
 				'son seis: América (donde vivimos), Europa, Asia, África, Oceanía y la '
@@ -210,7 +211,7 @@ class CorpusSepOficial {
 			numeroPagina: 42,
 			textoContenido:
 				'por qué tiembla sismos temblores terremotos placas tectónicas relieve '
-				'montañas llanuras mesetas depresiones sierra madre.',
+				'montañas llanuras mesetas depresiones sierra madre corteza terrestre.',
 			explicacion4to:
 				'El suelo que pisamos está formado por enormes piezas de roca como un '
 				'rompecabezas, llamadas placas tectónicas. Cuando dos de esas piezas se '
@@ -266,6 +267,69 @@ class CorpusSepOficial {
 			opcionesComprobacion: <String>['En el desierto', 'En la selva húmeda', 'En los hielos polares'],
 			indiceRespuestaCorrecta: 0,
 		),
+		FragmentoSEP(
+			idFragmento: 'SEP-GEO-09',
+			gradoNivel: 4,
+			nombreLibro: 'Libro SEP Geografía 4°',
+			bloqueTema: 'Bloque III · Población rural, urbana y migración',
+			numeroPagina: 83,
+			textoContenido:
+				'población campo ciudad rural urbana migración emigración inmigración '
+				'comunidades rurales servicios transporte habitantes censo inegi.',
+			explicacion4to:
+				'Las personas vivimos en dos tipos de lugares: el campo (localidades '
+				'rurales), donde hay menos habitantes, más naturaleza y se cultiva la '
+				'tierra; y las ciudades (localidades urbanas), donde viven muchas personas '
+				'y hay más edificios y fábricas. Cuando alguien se muda de un lugar a otro '
+				'para vivir o trabajar, a eso le llamamos migración.',
+			explicacion5to:
+				'En México el INEGI considera rurales a las localidades con menos de '
+				'2,500 habitantes, dedicadas sobre todo a actividades agropecuarias y '
+				'forestales, y urbanas a las que superan esa cifra. El desplazamiento '
+				'de población en busca de mejores oportunidades se denomina migración '
+				'(interna dentro del país o externa hacia otros países).',
+			explicacion6to:
+				'La distribución demográfica distingue entre espacios rurales (baja '
+				'densidad poblacional y predominio del sector primario) y espacios '
+				'urbanos (alta concentración de servicios e industria). Los flujos '
+				'migratorios comprenden la emigración (salida) y la inmigración (llegada), '
+				'transformando la estructura social y cultural de las regiones receptoras.',
+			tipoIlustracion: 'mexico',
+			notaIlustracion: 'El campo nos brinda alimentos y las ciudades concentran servicios.',
+			preguntaComprobacion: '¿Cómo se llama cuando las personas se mudan de un lugar a otro para vivir?',
+			opcionesComprobacion: <String>['Migración', 'Rotación', 'Evaporación'],
+			indiceRespuestaCorrecta: 0,
+		),
+		FragmentoSEP(
+			idFragmento: 'SEP-GEO-10',
+			gradoNivel: 4,
+			nombreLibro: 'Libro SEP Geografía 4° / Quinto Grado',
+			bloqueTema: 'Bloque IV · Actividades económicas: campo, industria y comercio',
+			numeroPagina: 117,
+			textoContenido:
+				'actividades económicas agricultura ganadería pesca minería recursos '
+				'naturales industria comercio turismo transporte maíz frijol petróleo.',
+			explicacion4to:
+				'Para tener alimentos, ropa y casas realizamos actividades económicas. '
+				'En el campo se siembra maíz y frijol (agricultura), se cuidan animales '
+				'(ganadería) y se pesca. Luego, las fábricas transforman esos recursos '
+				'en productos que llegan a las tiendas mediante el comercio y el transporte.',
+			explicacion5to:
+				'Las actividades económicas se dividen en tres sectores: primarias '
+				'(agricultura, ganadería, pesca, explotación forestal y minería), '
+				'secundarias (industria manufacturera y construcción) y terciarias '
+				'(comercio, transporte, educación, salud y turismo).',
+			explicacion6to:
+				'Las cadenas productivas articulan el sector primario (extracción de '
+				'materias primas agropecuarias, pesqueras, forestales y minero-energéticas), '
+				'el sector secundario (transformación industrial pesada y ligera) y el '
+				'sector terciario (distribución comercial, servicios financieros, '
+				'logística y turismo nacional e internacional).',
+			tipoIlustracion: 'climas',
+			notaIlustracion: 'Del campo (primarias) pasan a las fábricas (secundarias) y al comercio (terciarias).',
+			preguntaComprobacion: '¿A qué actividad económica pertenece sembrar maíz, frijol y verduras?',
+			opcionesComprobacion: <String>['Agricultura', 'Minería', 'Turismo'],
+			indiceRespuestaCorrecta: 0,
+		),
 	];
 }
-
