@@ -484,23 +484,89 @@ class ServicioAudio {
 	final bool _estaListoSTT;
 	FlutterTts? _tts;
 	bool _ttsInicializado = false;
+	String _vozSeleccionada = 'Voz Neuronal Español (es-MX)';
 	int _indiceDemoVoz = 0;
 	bool _reproduciendo = false;
 
 	bool get estaListoTTS => _estaListoTTS;
 	bool get estaListoSTT => _estaListoSTT;
 	bool get reproduciendo => _reproduciendo;
+	String get vozSeleccionada => _vozSeleccionada;
 
+	/// Busca y selecciona automaticamente la voz en espanol mas natural/neuronal
+	/// disponible en el celular Android (Google WaveNet / Neural) o navegador.
 	Future<void> _inicializarMotorTTS() async {
 		try {
 			final FlutterTts instancia = FlutterTts();
 			await instancia.setLanguage('es-MX');
-			await instancia.setPitch(1.05);
+			await instancia.setPitch(1.0);
 			await instancia.setVolume(1.0);
+
+			try {
+				final dynamic vocesRaw = await instancia.getVoices;
+				if (vocesRaw is List) {
+					Map<String, String>? mejorVoz;
+					int mejorPuntaje = -1;
+
+					for (final dynamic item in vocesRaw) {
+						if (item is Map) {
+							final String nombre =
+								(item['name'] ?? '').toString();
+							final String locale =
+								(item['locale'] ?? '').toString();
+							final String nBajo = nombre.toLowerCase();
+							final String lBajo = locale.toLowerCase();
+
+							if (!lBajo.startsWith('es')) {
+								continue;
+							}
+
+							int puntaje = 10;
+							// Priorizar espanol de Mexico y Latinoamerica
+							if (lBajo.contains('mx')) {
+								puntaje += 30;
+							} else if (lBajo.contains('us') ||
+								lBajo.contains('419')) {
+								puntaje += 20;
+							}
+							// Priorizar motores neuronales / naturales no roboticos
+							if (nBajo.contains('natural') ||
+								nBajo.contains('neural') ||
+								nBajo.contains('wavenet') ||
+								nBajo.contains('sfb') ||
+								nBajo.contains('sfc') ||
+								nBajo.contains('dalia') ||
+								nBajo.contains('jorge') ||
+								nBajo.contains('paulina') ||
+								nBajo.contains('sabina') ||
+								nBajo.contains('premium') ||
+								nBajo.contains('enhanced')) {
+								puntaje += 50;
+							}
+
+							if (puntaje > mejorPuntaje) {
+								mejorPuntaje = puntaje;
+								mejorVoz = <String, String>{
+									'name': nombre,
+									'locale': locale,
+								};
+							}
+						}
+					}
+
+					if (mejorVoz != null) {
+						await instancia.setVoice(mejorVoz);
+						_vozSeleccionada =
+							'${mejorVoz['name']} (${mejorVoz['locale']})';
+					}
+				}
+			} catch (_) {
+				// Si la plataforma restringe listar voces, mantiene es-MX por defecto
+			}
+
 			_tts = instancia;
 			_ttsInicializado = true;
 		} catch (_) {
-			// En entorno de test unitario sin canales nativos, opera en modo seguro
 			_ttsInicializado = false;
 		}
 	}
@@ -533,9 +599,8 @@ class ServicioAudio {
 				await _inicializarMotorTTS();
 			}
 			if (_tts != null) {
-				// Escala amigable para Android/Web (0.5 es velocidad natural en FlutterTts)
-				final double rate = (velocidad * 0.52).clamp(0.3, 0.85);
-				await _tts!.setLanguage('es-MX');
+				// Velocidad fluida y natural (sin arrastrar silabas)
+				final double rate = (velocidad * 0.88).clamp(0.5, 1.2);
 				await _tts!.setSpeechRate(rate);
 				await _tts!.stop();
 				await _tts!.speak(texto);
