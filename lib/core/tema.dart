@@ -1,40 +1,42 @@
 import 'package:flutter/material.dart';
 
-/// Paleta cromatica que fusiona:
-/// 1) El diseno limpio, calido y amigable de "Coach Voice Call" (fondo crema suave,
-///    esfera celeste/menta con halo luminoso, burbujas blancas redondeadas).
-/// 2) La identidad visual de Geograf-IA en 6_DisenoUI.pdf (verde bosque, acento lima).
+/// Paleta cromatica suave, armonica y amigable para ninos ("Coach Voice Call"):
+/// Fondo crema calido, tarjetas blancas limpias, acentos salvia/menta suaves
+/// sin bloques verdes saturados.
 class Paleta {
 	Paleta._();
 
 	// Tonos base suaves estilo Coach Voice Call
-	static const Color cremaFondo = Color(0xFFF3EFEA);
+	static const Color cremaFondo = Color(0xFFF4F0EA);
 	static const Color cremaTarjeta = Color(0xFFFAF8F5);
-	static const Color lavandaSuave = Color(0xFFE6DFEC);
-	static const Color esferaCeleste = Color(0xFFD6ECEF);
-	static const Color esferaSombra = Color(0xFFA8CFD6);
-	static const Color haloCalido = Color(0xFFFFF3D6);
+	static const Color lavandaSuave = Color(0xFFEBE5F0);
+	static const Color esferaCeleste = Color(0xFFD8EEF1);
+	static const Color esferaSombra = Color(0xFFAECFD6);
+	static const Color haloCalido = Color(0xFFFFF4DC);
 
-	// Tonos naturaleza Geograf-IA (6_DisenoUI.pdf)
-	static const Color verdeBosque = Color(0xFF1E4D3B);
-	static const Color verdePino = Color(0xFF2B6CB0);
-	static const Color verdeBoton = Color(0xFF215A46);
-	static const Color verdeLima = Color(0xFFC5D93D);
-	static const Color cieloMontana = Color(0xFF8FB9AA);
+	// Acentos suaves y amigables (salvia / menta / pizarra suave)
+	static const Color verdeBosque = Color(0xFF2F5D50);
+	static const Color verdePino = Color(0xFF3E7364);
+	static const Color verdeBoton = Color(0xFF2F5D50);
+	static const Color verdeLima = Color(0xFFDCEAB2);
+	static const Color salviaSuave = Color(0xFFE6EFEA);
+	static const Color bordeSuave = Color(0xFFE2DDD5);
 
 	// Texto y burbujas
-	static const Color textoPrimario = Color(0xFF1E242B);
-	static const Color textoSecundario = Color(0xFF687078);
-	static const Color burbujaAlumno = Color(0xFF23272F);
+	static const Color textoPrimario = Color(0xFF22262B);
+	static const Color textoSecundario = Color(0xFF6C737A);
+	static const Color burbujaAlumno = Color(0xFF262A32);
 	static const Color burbujaTutor = Color(0xFFFFFFFF);
-	static const Color alertaMaestro = Color(0xFFFFF4E5);
+	static const Color alertaMaestro = Color(0xFFFFF6E8);
 	static const Color bordeAlerta = Color(0xFFE6A23C);
 }
 
-ThemeData construirTema({bool altoContraste = false, int tamanoBase = 19}) {
-	final double escala = tamanoBase / 19.0;
-	final Color fondo = altoContraste ? const Color(0xFFFFFFFF) : Paleta.cremaFondo;
-	final Color primario = altoContraste ? const Color(0xFF0D2E22) : Paleta.verdeBosque;
+ThemeData construirTema({bool altoContraste = false, int tamanoBase = 16}) {
+	final double escala = tamanoBase / 16.0;
+	final Color fondo =
+		altoContraste ? const Color(0xFFFFFFFF) : Paleta.cremaFondo;
+	final Color primario =
+		altoContraste ? const Color(0xFF1A3A30) : Paleta.verdeBosque;
 
 	return ThemeData(
 		useMaterial3: true,
@@ -46,27 +48,27 @@ ThemeData construirTema({bool altoContraste = false, int tamanoBase = 19}) {
 		),
 		textTheme: TextTheme(
 			headlineMedium: TextStyle(
-				fontSize: 26 * escala,
+				fontSize: 21 * escala,
 				fontWeight: FontWeight.w800,
 				color: Paleta.textoPrimario,
-				letterSpacing: -0.5,
+				letterSpacing: -0.4,
+				height: 1.2,
 			),
 			titleLarge: TextStyle(
-				fontSize: 20 * escala,
+				fontSize: 17 * escala,
 				fontWeight: FontWeight.w700,
 				color: Paleta.textoPrimario,
 			),
 			bodyLarge: TextStyle(
-				fontSize: 18 * escala,
-				height: 1.4,
+				fontSize: 15.5 * escala,
+				height: 1.38,
 				color: Paleta.textoPrimario,
 			),
 			bodyMedium: TextStyle(
-				fontSize: 16 * escala,
+				fontSize: 14 * escala,
 				height: 1.35,
 				color: Paleta.textoPrimario,
 			),
 		),
 	);
 }
-

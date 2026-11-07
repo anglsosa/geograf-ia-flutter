@@ -372,38 +372,37 @@ class TarjetaIlustracionDidactica extends StatelessWidget {
 		}
 		return Container(
 			margin: const EdgeInsets.only(top: 10),
-			padding: const EdgeInsets.all(12),
+			padding: const EdgeInsets.all(10),
 			decoration: BoxDecoration(
-				color: Paleta.verdeBosque,
-				borderRadius: BorderRadius.circular(16),
+				color: Paleta.salviaSuave,
+				borderRadius: BorderRadius.circular(14),
+				border: Border.all(color: Paleta.bordeSuave),
 			),
 			child: Row(
 				children: <Widget>[
 					Container(
-						width: 96,
-						height: 76,
+						width: 78,
+						height: 62,
 						decoration: BoxDecoration(
 							color: const Color(0xFFFBE9D7),
-							borderRadius: BorderRadius.circular(12),
+							borderRadius: BorderRadius.circular(10),
 						),
 						child: ClipRRect(
-							borderRadius: BorderRadius.circular(12),
+							borderRadius: BorderRadius.circular(10),
 							child: CustomPaint(
 								painter: _DiagramaGeografiaPainter(tipoIlustracion),
 							),
 						),
 					),
-					const SizedBox(width: 12),
-					const Text('🐰', style: TextStyle(fontSize: 22)),
-					const SizedBox(width: 8),
+					const SizedBox(width: 10),
 					Expanded(
 						child: Text(
 							notaIlustracion,
 							style: const TextStyle(
-								color: Colors.white,
-								fontSize: 13.5,
+								color: Paleta.textoPrimario,
+								fontSize: 12.5,
 								height: 1.3,
-								fontWeight: FontWeight.w500,
+								fontWeight: FontWeight.w600,
 							),
 						),
 					),

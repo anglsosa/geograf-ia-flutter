@@ -9,9 +9,8 @@ import '../services/servicios.dart';
 import 'mascota.dart';
 
 /// ActividadConfiguracion (9_UML.pdf y 6_DisenoUI.pdf pagina 6).
-/// Permite seleccionar el grado escolar (4°, 5°, 6°), actualizar la base
-/// vectorial mediante memoria USB OTG (RF-05, RF-11) y ajustar accesibilidad.
-/// Cumple con RNF-02: NO permite que el alumno modifique libremente el contenido SEP.
+/// Totalmente responsiva para telefonos pequenos y tablets, con diseno
+/// unificado suave (crema/blanco/pastel) coherente con toda la aplicacion.
 class PantallaConfiguracion extends StatefulWidget {
 	const PantallaConfiguracion({
 		super.key,
@@ -117,7 +116,7 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 					children: <Widget>[
 						const Icon(
 							Icons.check_circle_rounded,
-							color: Paleta.verdeLima,
+							color: Colors.white,
 						),
 						const SizedBox(width: 10),
 						Expanded(child: Text(mensaje)),
@@ -145,9 +144,9 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 								begin: Alignment.topCenter,
 								end: Alignment.bottomCenter,
 								colors: <Color>[
-									Color(0xFFF3EAD8),
 									Paleta.cremaFondo,
-									Color(0xFFDCE8DF),
+									Paleta.cremaTarjeta,
+									Paleta.salviaSuave,
 								],
 							),
 						),
@@ -158,14 +157,14 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 									Expanded(
 										child: SingleChildScrollView(
 											padding: const EdgeInsets.symmetric(
-												horizontal: 20,
-												vertical: 8,
+												horizontal: 14,
+												vertical: 6,
 											),
 											child: Center(
 												child: ConstrainedBox(
 													constraints:
 														const BoxConstraints(
-															maxWidth: 880,
+															maxWidth: 840,
 														),
 													child: LayoutBuilder(
 														builder: (
@@ -173,7 +172,7 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 															BoxConstraints bc,
 														) {
 															final bool ancho =
-																bc.maxWidth > 680;
+																bc.maxWidth > 660;
 															if (ancho) {
 																return Row(
 																	crossAxisAlignment:
@@ -188,7 +187,7 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 																			),
 																		),
 																		const SizedBox(
-																			width: 16,
+																			width: 14,
 																		),
 																		Expanded(
 																			flex: 10,
@@ -198,7 +197,7 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 																						almacen,
 																					),
 																					const SizedBox(
-																						height: 16,
+																						height: 14,
 																					),
 																					_tarjetaAccesibilidad(
 																						cfg,
@@ -216,16 +215,19 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 																		almacen,
 																	),
 																	const SizedBox(
-																		height: 16,
+																		height: 12,
 																	),
 																	_tarjetaActualizarUSB(
 																		almacen,
 																	),
 																	const SizedBox(
-																		height: 16,
+																		height: 12,
 																	),
 																	_tarjetaAccesibilidad(
 																		cfg,
+																	),
+																	const SizedBox(
+																		height: 8,
 																	),
 																],
 															);
@@ -245,41 +247,60 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 		);
 	}
 
+	/// Encabezado responsivo que nunca corta la palabra "Configuracion".
 	Widget _construirEncabezado(BuildContext context) {
 		return Padding(
-			padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+			padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
 			child: Row(
 				children: <Widget>[
-					FilledButton.tonalIcon(
-						style: FilledButton.styleFrom(
-							backgroundColor: Paleta.cremaTarjeta,
-							foregroundColor: Paleta.verdeBosque,
+					OutlinedButton.icon(
+						style: OutlinedButton.styleFrom(
+							backgroundColor: Colors.white,
+							foregroundColor: Paleta.textoPrimario,
+							side: const BorderSide(color: Paleta.bordeSuave),
+							padding: const EdgeInsets.symmetric(
+								horizontal: 10,
+								vertical: 6,
+							),
+							minimumSize: Size.zero,
+							tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+							shape: RoundedRectangleBorder(
+								borderRadius: BorderRadius.circular(18),
+							),
 						),
 						onPressed: () => Navigator.of(context).pop(),
-						icon: const Icon(Icons.arrow_back_rounded),
+						icon: const Icon(Icons.arrow_back_rounded, size: 17),
 						label: const Text(
 							'Inicio',
-							style: TextStyle(fontWeight: FontWeight.w800),
+							style: TextStyle(
+								fontSize: 13,
+								fontWeight: FontWeight.w700,
+							),
 						),
 					),
-					const SizedBox(width: 14),
+					const SizedBox(width: 10),
 					const Expanded(
 						child: Column(
 							crossAxisAlignment: CrossAxisAlignment.start,
+							mainAxisSize: MainAxisSize.min,
 							children: <Widget>[
 								Text(
-									'CONFIGURACIÓN',
+									'Configuración',
+									maxLines: 1,
+									overflow: TextOverflow.ellipsis,
 									style: TextStyle(
-										fontSize: 22,
-										fontWeight: FontWeight.w900,
-										color: Paleta.verdeBosque,
-										letterSpacing: 0.5,
+										fontSize: 18,
+										fontWeight: FontWeight.w800,
+										color: Paleta.textoPrimario,
+										letterSpacing: -0.3,
 									),
 								),
 								Text(
-									'Prepara tus libros SEP y elige cómo quieres aprender.',
+									'Libros SEP, actualización USB y voz',
+									maxLines: 1,
+									overflow: TextOverflow.ellipsis,
 									style: TextStyle(
-										fontSize: 13.5,
+										fontSize: 11.5,
 										color: Paleta.textoSecundario,
 									),
 								),
@@ -288,74 +309,89 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 					),
 					const Mascota(
 						estado: EstadoMascota.reposo,
-						tamano: 44,
+						tamano: 34,
 						mostrarEtiqueta: false,
+						mostrarOrejas: false,
 					),
 				],
 			),
 		);
 	}
 
-	/// Tarjeta izquierda de 6_DisenoUI.pdf pagina 6: "Base de conocimiento" (4°, 5°, 6°).
+	/// Tarjeta "Base de conocimiento SEP" (4°, 5°, 6°) en estilo crema/blanco limpio.
 	Widget _tarjetaBaseConocimiento(
 		ConfiguracionAula cfg,
 		AlmacenVectoresChroma almacen,
 	) {
 		return Container(
-			padding: const EdgeInsets.all(18),
+			padding: const EdgeInsets.all(14),
 			decoration: BoxDecoration(
-				color: const Color(0xFFEDF2E6),
-				borderRadius: BorderRadius.circular(22),
-				border: Border.all(
-					color: Paleta.verdeBosque.withValues(alpha: 0.15),
-				),
+				color: Colors.white,
+				borderRadius: BorderRadius.circular(20),
+				border: Border.all(color: Paleta.bordeSuave),
 			),
 			child: Column(
 				crossAxisAlignment: CrossAxisAlignment.start,
 				children: <Widget>[
-					const Row(
+					Row(
 						children: <Widget>[
-							Icon(
-								Icons.menu_book_rounded,
-								color: Paleta.verdeBosque,
-							),
-							SizedBox(width: 8),
-							Text(
-								'Base de conocimiento SEP',
-								style: TextStyle(
-									fontSize: 18,
-									fontWeight: FontWeight.w800,
+							Container(
+								width: 32,
+								height: 32,
+								decoration: BoxDecoration(
+									color: Paleta.esferaCeleste,
+									borderRadius: BorderRadius.circular(9),
+								),
+								child: const Icon(
+									Icons.menu_book_rounded,
+									size: 18,
 									color: Paleta.verdeBosque,
+								),
+							),
+							const SizedBox(width: 10),
+							const Expanded(
+								child: Text(
+									'Base de conocimiento SEP',
+									style: TextStyle(
+										fontSize: 15.5,
+										fontWeight: FontWeight.w800,
+										color: Paleta.textoPrimario,
+									),
 								),
 							),
 						],
 					),
 					const SizedBox(height: 6),
 					const Text(
-						'Libros oficiales de Geografía de la SEP preinstalados (RF-02, RF-07). Selecciona el grado escolar:',
+						'Libros oficiales de Geografía preinstalados (RF-02, RF-07). Elige tu grado escolar:',
 						style: TextStyle(
-							fontSize: 13.5,
+							fontSize: 12.5,
 							color: Paleta.textoSecundario,
 						),
 					),
-					const SizedBox(height: 14),
+					const SizedBox(height: 10),
 					...Reglas.gradosSoportados.map((int grado) {
 						final bool seleccionado = cfg.gradoActual == grado;
 						return Padding(
-							padding: const EdgeInsets.only(bottom: 10),
+							padding: const EdgeInsets.only(bottom: 8),
 							child: InkWell(
-								borderRadius: BorderRadius.circular(16),
+								borderRadius: BorderRadius.circular(14),
 								onTap: () => seleccionarGrado(grado),
 								child: Container(
-									padding: const EdgeInsets.all(14),
+									padding: const EdgeInsets.symmetric(
+										horizontal: 12,
+										vertical: 10,
+									),
 									decoration: BoxDecoration(
-										color: Colors.white,
-										borderRadius: BorderRadius.circular(16),
+										color: seleccionado
+											? Paleta.salviaSuave
+											: Paleta.cremaTarjeta,
+										borderRadius: BorderRadius.circular(14),
 										border: Border.all(
 											color: seleccionado
 												? Paleta.verdeBosque
-												: Colors.transparent,
-											width: 2,
+												: Paleta.bordeSuave,
+											width: seleccionado ? 1.5 : 1.0,
 										),
 									),
 									child: Row(
@@ -364,9 +400,10 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 												seleccionado
 													? Icons.check_circle_rounded
 													: Icons.book_outlined,
+												size: 20,
 												color: Paleta.verdeBosque,
 											),
-											const SizedBox(width: 12),
+											const SizedBox(width: 10),
 											Expanded(
 												child: Column(
 													crossAxisAlignment:
@@ -376,16 +413,18 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 															'Libros SEP Geografía $grado°',
 															style: const TextStyle(
 																fontWeight:
-																	FontWeight.w800,
-																fontSize: 15,
+																	FontWeight.w700,
+																fontSize: 14,
+																color: Paleta
+																	.textoPrimario,
 															),
 														),
 														Text(
 															seleccionado
-																? 'Activo · Nivel adaptado a $grado° de primaria'
-																: 'Disponible sin conexión · Toca para activar',
+																? 'Activo · Explicación adaptada a $grado°'
+																: 'Disponible sin conexión · Toca para usar',
 															style: const TextStyle(
-																fontSize: 12.5,
+																fontSize: 11.5,
 																color: Paleta
 																	.textoSecundario,
 															),
@@ -399,31 +438,32 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 							),
 						);
 					}),
-					const SizedBox(height: 6),
+					const SizedBox(height: 4),
 					Container(
 						width: double.infinity,
 						padding: const EdgeInsets.symmetric(
-							horizontal: 14,
-							vertical: 12,
+							horizontal: 12,
+							vertical: 9,
 						),
 						decoration: BoxDecoration(
-							color: Paleta.verdeBosque,
-							borderRadius: BorderRadius.circular(14),
+							color: Paleta.cremaTarjeta,
+							borderRadius: BorderRadius.circular(12),
+							border: Border.all(color: Paleta.bordeSuave),
 						),
 						child: Row(
 							children: <Widget>[
 								const Icon(
-									Icons.verified_user_rounded,
-									color: Paleta.verdeLima,
-									size: 20,
+									Icons.verified_user_outlined,
+									color: Paleta.verdeBosque,
+									size: 17,
 								),
-								const SizedBox(width: 10),
+								const SizedBox(width: 8),
 								Expanded(
 									child: Text(
-										'Solo lectura protegida (RNF-02) · ${almacen.totalFragmentos} bloques · ${almacen.obtenerAlmacenamientoUsadoMB().toStringAsFixed(1)} MB / 4096 MB (RNF-09)',
+										'Solo lectura (RNF-02) · ${almacen.totalFragmentos} temas · ${almacen.obtenerAlmacenamientoUsadoMB().toStringAsFixed(0)} MB / 4096 MB',
 										style: const TextStyle(
-											color: Colors.white,
-											fontSize: 12.5,
+											color: Paleta.textoSecundario,
+											fontSize: 11.5,
 											fontWeight: FontWeight.w600,
 										),
 									),
@@ -436,55 +476,65 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 		);
 	}
 
-	/// Tarjeta superior derecha de 6_DisenoUI.pdf pagina 6: "Actualizar sistema" (RF-05 y RF-11).
+	/// Tarjeta "Actualizar sistema (USB)" (RF-05 y RF-11) en estilo limpio.
 	Widget _tarjetaActualizarUSB(AlmacenVectoresChroma almacen) {
 		return Container(
-			padding: const EdgeInsets.all(18),
+			padding: const EdgeInsets.all(14),
 			decoration: BoxDecoration(
-				color: const Color(0xFFEDF2E6),
-				borderRadius: BorderRadius.circular(22),
-				border: Border.all(
-					color: Paleta.verdeBosque.withValues(alpha: 0.15),
-				),
+				color: Colors.white,
+				borderRadius: BorderRadius.circular(20),
+				border: Border.all(color: Paleta.bordeSuave),
 			),
 			child: Column(
 				crossAxisAlignment: CrossAxisAlignment.start,
 				children: <Widget>[
-					const Row(
+					Row(
 						children: <Widget>[
-							Icon(
-								Icons.usb_rounded,
-								color: Paleta.verdeBosque,
-							),
-							SizedBox(width: 8),
-							Text(
-								'Actualizar sistema (USB)',
-								style: TextStyle(
-									fontSize: 18,
-									fontWeight: FontWeight.w800,
+							Container(
+								width: 32,
+								height: 32,
+								decoration: BoxDecoration(
+									color: Paleta.esferaCeleste,
+									borderRadius: BorderRadius.circular(9),
+								),
+								child: const Icon(
+									Icons.usb_rounded,
+									size: 18,
 									color: Paleta.verdeBosque,
+								),
+							),
+							const SizedBox(width: 10),
+							const Expanded(
+								child: Text(
+									'Actualizar sistema (USB)',
+									style: TextStyle(
+										fontSize: 15.5,
+										fontWeight: FontWeight.w800,
+										color: Paleta.textoPrimario,
+									),
 								),
 							),
 						],
 					),
 					const SizedBox(height: 6),
 					const Text(
-						'Conecta una memoria USB entregada en el Consejo Técnico Escolar para actualizar sin internet (RF-05):',
+						'Conecta la memoria USB del Consejo Técnico Escolar para actualizar sin internet (RF-05):',
 						style: TextStyle(
-							fontSize: 13.5,
+							fontSize: 12.5,
 							color: Paleta.textoSecundario,
 						),
 					),
-					const SizedBox(height: 12),
+					const SizedBox(height: 10),
 					Container(
 						width: double.infinity,
 						padding: const EdgeInsets.symmetric(
-							horizontal: 14,
-							vertical: 11,
+							horizontal: 12,
+							vertical: 9,
 						),
 						decoration: BoxDecoration(
-							color: Colors.white,
-							borderRadius: BorderRadius.circular(14),
+							color: Paleta.cremaTarjeta,
+							borderRadius: BorderRadius.circular(12),
+							border: Border.all(color: Paleta.bordeSuave),
 						),
 						child: Row(
 							children: <Widget>[
@@ -492,23 +542,24 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 									_ultimoReporte?.exitoso == true
 										? Icons.check_circle_rounded
 										: Icons.info_outline_rounded,
-									size: 18,
+									size: 16,
 									color: Paleta.verdeBosque,
 								),
 								const SizedBox(width: 8),
 								Expanded(
 									child: Text(
-										'$_estadoUSB · Versión: ${almacen.versionActual}',
+										'$_estadoUSB · ${almacen.versionActual}',
 										style: const TextStyle(
-											fontSize: 13,
+											fontSize: 12,
 											fontWeight: FontWeight.w600,
+											color: Paleta.textoPrimario,
 										),
 									),
 								),
 							],
 						),
 					),
-					const SizedBox(height: 12),
+					const SizedBox(height: 10),
 					SizedBox(
 						width: double.infinity,
 						child: FilledButton.icon(
@@ -516,7 +567,7 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 								backgroundColor: Paleta.verdeBoton,
 								foregroundColor: Colors.white,
 								padding: const EdgeInsets.symmetric(
-									vertical: 13,
+									vertical: 11,
 								),
 								shape: RoundedRectangleBorder(
 									borderRadius: BorderRadius.circular(14),
@@ -525,30 +576,31 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 							onPressed: _actualizandoUSB ? null : verificarUSBClick,
 							icon: _actualizandoUSB
 								? const SizedBox(
-									width: 18,
-									height: 18,
+									width: 16,
+									height: 16,
 									child: CircularProgressIndicator(
 										strokeWidth: 2,
 										color: Colors.white,
 									),
 								)
-								: const Icon(Icons.sync_rounded),
+								: const Icon(Icons.sync_rounded, size: 18),
 							label: Text(
 								_actualizandoUSB
 									? 'Actualizando base SEP…'
 									: 'Verificar actualizaciones en USB',
 								style: const TextStyle(
-									fontWeight: FontWeight.w800,
+									fontSize: 13.5,
+									fontWeight: FontWeight.w700,
 								),
 							),
 						),
 					),
 					if (_ultimoReporte != null && _ultimoReporte!.exitoso) ...<Widget>[
-						const SizedBox(height: 8),
+						const SizedBox(height: 6),
 						Text(
-							'✅ Confirmación (RF-11): ${_ultimoReporte!.fragmentosCargados} temas oficiales listos en ${_ultimoReporte!.duracionSegundos.toStringAsFixed(1)} s.',
+							'✅ Confirmado (RF-11): ${_ultimoReporte!.fragmentosCargados} temas listos en ${_ultimoReporte!.duracionSegundos.toStringAsFixed(1)} s.',
 							style: const TextStyle(
-								fontSize: 12.5,
+								fontSize: 12,
 								fontWeight: FontWeight.w700,
 								color: Paleta.verdeBosque,
 							),
@@ -559,31 +611,41 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 		);
 	}
 
-	/// Tarjeta inferior derecha de 6_DisenoUI.pdf pagina 6: "Configuración de accesibilidad".
+	/// Tarjeta "Configuración de accesibilidad" armonizada en blanco/crema suave.
 	Widget _tarjetaAccesibilidad(ConfiguracionAula cfg) {
 		return Container(
-			padding: const EdgeInsets.all(18),
+			padding: const EdgeInsets.all(14),
 			decoration: BoxDecoration(
-				color: Paleta.verdeBosque,
-				borderRadius: BorderRadius.circular(22),
+				color: Colors.white,
+				borderRadius: BorderRadius.circular(20),
+				border: Border.all(color: Paleta.bordeSuave),
 			),
 			child: Column(
 				crossAxisAlignment: CrossAxisAlignment.start,
 				children: <Widget>[
-					const Row(
+					Row(
 						children: <Widget>[
-							Icon(
-								Icons.accessibility_new_rounded,
-								color: Paleta.verdeLima,
+							Container(
+								width: 32,
+								height: 32,
+								decoration: BoxDecoration(
+									color: Paleta.esferaCeleste,
+									borderRadius: BorderRadius.circular(9),
+								),
+								child: const Icon(
+									Icons.accessibility_new_rounded,
+									size: 18,
+									color: Paleta.verdeBosque,
+								),
 							),
-							SizedBox(width: 8),
-							Expanded(
+							const SizedBox(width: 10),
+							const Expanded(
 								child: Text(
-									'Configuración de accesibilidad',
+									'Accesibilidad y voz',
 									style: TextStyle(
-										fontSize: 18,
+										fontSize: 15.5,
 										fontWeight: FontWeight.w800,
-										color: Colors.white,
+										color: Paleta.textoPrimario,
 									),
 								),
 							),
@@ -591,17 +653,18 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 					),
 					const SizedBox(height: 6),
 					const Text(
-						'Ajusta el tamaño del texto, el contraste y la velocidad de la voz a tu medida (RNF-08).',
+						'Ajusta el tamaño de letra, contraste y velocidad de lectura (RNF-08):',
 						style: TextStyle(
-							fontSize: 13,
-							color: Colors.white70,
+							fontSize: 12.5,
+							color: Paleta.textoSecundario,
 						),
 					),
-					const SizedBox(height: 12),
+					const SizedBox(height: 10),
 					Text(
-						'Tamaño de letra: ${cfg.tamanoFuente} pt',
+						'Tamaño del texto: ${cfg.tamanoFuente} pt',
 						style: const TextStyle(
-							color: Colors.white,
+							fontSize: 13,
+							color: Paleta.textoPrimario,
 							fontWeight: FontWeight.w700,
 						),
 					),
@@ -610,13 +673,14 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 						min: Reglas.tamanoTextoMin.toDouble(),
 						max: Reglas.tamanoTextoMax.toDouble(),
 						divisions: Reglas.tamanoTextoMax - Reglas.tamanoTextoMin,
-						activeColor: Paleta.verdeLima,
+						activeColor: Paleta.verdeBosque,
 						onChanged: (double v) => ajustarTamanoTexto(v.round()),
 					),
 					Text(
-						'Velocidad de lectura por voz: ${cfg.velocidadLecturaVoz.toStringAsFixed(1)}x',
+						'Velocidad de voz: ${cfg.velocidadLecturaVoz.toStringAsFixed(1)}x',
 						style: const TextStyle(
-							color: Colors.white,
+							fontSize: 13,
+							color: Paleta.textoPrimario,
 							fontWeight: FontWeight.w700,
 						),
 					),
@@ -625,15 +689,20 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 						min: Reglas.velocidadVozMin,
 						max: Reglas.velocidadVozMax,
 						divisions: 8,
-						activeColor: Paleta.verdeLima,
+						activeColor: Paleta.verdeBosque,
 						onChanged: ajustarVelocidadVoz,
 					),
 					SwitchListTile(
 						contentPadding: EdgeInsets.zero,
-						activeColor: Paleta.verdeLima,
+						dense: true,
+						activeColor: Paleta.verdeBosque,
 						title: const Text(
 							'Leer respuestas en voz alta automáticamente',
-							style: TextStyle(color: Colors.white, fontSize: 14),
+							style: TextStyle(
+								color: Paleta.textoPrimario,
+								fontSize: 13,
+								fontWeight: FontWeight.w600,
+							),
 						),
 						value: cfg.vozAutomatica,
 						onChanged: (bool val) => widget.controlador
@@ -641,10 +710,15 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 					),
 					SwitchListTile(
 						contentPadding: EdgeInsets.zero,
-						activeColor: Paleta.verdeLima,
+						dense: true,
+						activeColor: Paleta.verdeBosque,
 						title: const Text(
 							'Modo de alto contraste visual',
-							style: TextStyle(color: Colors.white, fontSize: 14),
+							style: TextStyle(
+								color: Paleta.textoPrimario,
+								fontSize: 13,
+								fontWeight: FontWeight.w600,
+							),
 						),
 						value: cfg.altoContraste,
 						onChanged: (bool val) => widget.controlador
@@ -655,29 +729,33 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 		);
 	}
 
-	/// Barra resumen inferior identica al pie de pagina 6 de 6_DisenoUI.pdf.
+	/// Barra resumen inferior discreta y de una sola linea.
 	Widget _barraEstadoInferior(ConfiguracionAula cfg) {
-		final String textoTam = cfg.tamanoFuente > 20 ? 'Texto grande' : 'Texto normal';
+		final String textoTam =
+			cfg.tamanoFuente > 17 ? 'Texto grande' : 'Texto normal';
 		final String contraste =
 			cfg.altoContraste ? 'Alto contraste' : 'Contraste estándar';
-		final String voz = cfg.vozAutomatica ? 'Voz activada' : 'Voz manual';
+		final String voz = cfg.vozAutomatica ? 'Voz activa' : 'Voz manual';
 
 		return Padding(
-			padding: const EdgeInsets.only(bottom: 10, top: 4),
+			padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
 			child: Container(
 				padding: const EdgeInsets.symmetric(
-					horizontal: 16,
-					vertical: 7,
+					horizontal: 12,
+					vertical: 6,
 				),
 				decoration: BoxDecoration(
-					color: Paleta.verdeBosque,
-					borderRadius: BorderRadius.circular(20),
+					color: Colors.white,
+					borderRadius: BorderRadius.circular(16),
+					border: Border.all(color: Paleta.bordeSuave),
 				),
 				child: Text(
-					'🔊 $textoTam · $contraste · $voz · Lectura ${cfg.velocidadLecturaVoz.toStringAsFixed(1)}x',
+					'🔊 $textoTam · $contraste · $voz · ${cfg.velocidadLecturaVoz.toStringAsFixed(1)}x',
+					maxLines: 1,
+					overflow: TextOverflow.ellipsis,
 					style: const TextStyle(
-						color: Colors.white,
-						fontSize: 12.5,
+						color: Paleta.textoSecundario,
+						fontSize: 11.5,
 						fontWeight: FontWeight.w600,
 					),
 				),
@@ -685,4 +763,3 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 		);
 	}
 }
-

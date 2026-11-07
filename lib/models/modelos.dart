@@ -120,7 +120,7 @@ class ConfiguracionAula {
 	ConfiguracionAula({
 		int gradoActual = 4,
 		double velocidadLecturaVoz = 1.0,
-		int tamanoFuente = 19,
+		int tamanoFuente = 16,
 		this.altoContraste = false,
 		this.vozAutomatica = true,
 	})  : _gradoActual = gradoActual,
@@ -152,7 +152,7 @@ class ConfiguracionAula {
 	}
 
 	void fijarTamanoFuente(int tamano) {
-		_tamanoFuente = tamano.clamp(16, 26);
+		_tamanoFuente = tamano.clamp(14, 22);
 	}
 
 	ConfiguracionAula copiarCon({

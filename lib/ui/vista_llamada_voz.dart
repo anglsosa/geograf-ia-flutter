@@ -7,10 +7,8 @@ import '../core/tema.dart';
 import '../models/modelos.dart';
 import 'mascota.dart';
 
-/// Vista de Llamada de Voz inspirada directamente en la pantalla izquierda de
-/// la referencia visual ("Coach Voice Call"):
-/// Ideal para ninos con baja alfabetizacion digital o dificultades de lectura
-/// (RF-01, RF-04 y RNF-08).
+/// Vista de Llamada de Voz inspirada en "Coach Voice Call":
+/// Totalmente responsiva para pantallas pequenas y grandes.
 class VistaLlamadaVoz extends StatefulWidget {
 	const VistaLlamadaVoz({
 		super.key,
@@ -60,11 +58,11 @@ class _VistaLlamadaVozState extends State<VistaLlamadaVoz> {
 			case EstadoMascota.escuchando:
 				return 'Geograf-IA te está escuchando…';
 			case EstadoMascota.pensando:
-				return 'Consultando tu libro SEP de ${widget.controlador.configuracion.gradoActual}° grado…';
+				return 'Consultando libro SEP de ${widget.controlador.configuracion.gradoActual}° grado…';
 			case EstadoMascota.hablando:
 				return 'Geograf-IA está hablando contigo';
 			case EstadoMascota.reposo:
-				return 'Toca el micrófono o elige una pregunta para hablar';
+				return 'Toca el micrófono o elige una pregunta abajo';
 		}
 	}
 
@@ -89,157 +87,207 @@ class _VistaLlamadaVozState extends State<VistaLlamadaVoz> {
 				),
 			),
 			child: SafeArea(
-				child: Padding(
-					padding: const EdgeInsets.symmetric(
-						horizontal: 24,
-						vertical: 16,
-					),
-					child: Column(
-						children: <Widget>[
-							const SizedBox(height: 8),
-							// Indicador superior estilo "Connected / Coach Voice Call"
-							Text(
-								'Sin internet · Libro SEP ${c.configuracion.gradoActual}° Primaria',
-								style: const TextStyle(
-									fontSize: 13.5,
-									fontWeight: FontWeight.w600,
-									color: Paleta.textoSecundario,
-								),
+				child: LayoutBuilder(
+					builder: (BuildContext context, BoxConstraints bc) {
+						final bool pantallaBaja = bc.maxHeight < 640;
+						final double tamEsfera = pantallaBaja ? 135.0 : 175.0;
+
+						return Padding(
+							padding: const EdgeInsets.symmetric(
+								horizontal: 18,
+								vertical: 12,
 							),
-							const SizedBox(height: 4),
-							const Text(
-								'Tutor de Voz Geograf-IA',
-								style: TextStyle(
-									fontSize: 24,
-									fontWeight: FontWeight.w800,
-									color: Paleta.textoPrimario,
-									letterSpacing: -0.4,
-								),
-							),
-							const Spacer(),
-							// Esfera 3D gigante en el centro
-							Mascota(
-								estado: c.estado,
-								tamano: 195,
-								mostrarEtiqueta: false,
-								mostrarOrejas: false,
-							),
-							const SizedBox(height: 24),
-							// Contador de tiempo 01:24 + estado
-							Text(
-								_tiempoFormateado,
-								style: const TextStyle(
-									fontSize: 28,
-									fontWeight: FontWeight.w800,
-									color: Paleta.textoPrimario,
-								),
-							),
-							const SizedBox(height: 4),
-							Text(
-								_subtituloEstado(c.estado),
-								textAlign: TextAlign.center,
-								style: const TextStyle(
-									fontSize: 15,
-									fontWeight: FontWeight.w500,
-									color: Paleta.textoSecundario,
-								),
-							),
-							const SizedBox(height: 16),
-							// Subtitulos accesibles de la ultima explicacion + cita SEP
-							if (ultimaRespuesta != null)
-								Container(
-									padding: const EdgeInsets.all(14),
-									constraints: const BoxConstraints(maxWidth: 460),
-									decoration: BoxDecoration(
-										color: Colors.white.withValues(alpha: 0.9),
-										borderRadius: BorderRadius.circular(20),
-										boxShadow: <BoxShadow>[
-											BoxShadow(
-												color: Colors.black.withValues(alpha: 0.04),
-												blurRadius: 12,
-											),
-										],
-									),
-									child: Column(
-										children: <Widget>[
-											Text(
-												ultimaRespuesta.texto,
-												maxLines: 3,
-												overflow: TextOverflow.ellipsis,
-												textAlign: TextAlign.center,
-												style: const TextStyle(
-													fontSize: 14.5,
-													color: Paleta.textoPrimario,
-													height: 1.35,
-												),
-											),
-											if (ultimaRespuesta.citaFuente.isNotEmpty) ...<Widget>[
-												const SizedBox(height: 6),
-												Text(
-													'📖 ${ultimaRespuesta.citaFuente}',
-													style: const TextStyle(
-														fontSize: 12,
-														fontWeight: FontWeight.w700,
-														color: Paleta.verdeBosque,
-													),
-												),
-											],
-										],
-									),
-								),
-							const Spacer(),
-							// Frases de voz rapidas para probar STT en FlutLab sin microfono fisico
-							SizedBox(
-								height: 38,
-								child: ListView.separated(
-									scrollDirection: Axis.horizontal,
-									itemCount: Reglas.preguntasVozDemo.length,
-									separatorBuilder: (_, __) => const SizedBox(width: 8),
-									itemBuilder: (BuildContext context, int i) {
-										final String frase = Reglas.preguntasVozDemo[i];
-										return ActionChip(
-											backgroundColor: Colors.white.withValues(alpha: 0.85),
-											avatar: const Icon(
-												Icons.record_voice_over_rounded,
-												size: 16,
-												color: Paleta.verdeBosque,
-											),
-											label: Text(
-												frase,
-												style: const TextStyle(fontSize: 13),
-											),
-											onPressed: c.ocupado
-												? null
-												: () => c.preguntarPorVoz(fraseSimulada: frase),
-										);
-									},
-								),
-							),
-							const SizedBox(height: 22),
-							// Dos botones circulares inferiores identicos a la imagen ("Coach Voice Call")
-							Row(
-								mainAxisAlignment: MainAxisAlignment.spaceBetween,
+							child: Column(
 								children: <Widget>[
-									_BotonCircularLlamada(
-										icono: c.estado == EstadoMascota.escuchando
-											? Icons.graphic_eq_rounded
-											: Icons.mic_none_rounded,
-										etiqueta: 'Hablar por voz',
-										activo: c.estado == EstadoMascota.escuchando,
-										alPresionar: c.ocupado
-											? null
-											: () => c.preguntarPorVoz(),
+									Text(
+										'Sin internet · Libro SEP ${c.configuracion.gradoActual}° Primaria',
+										maxLines: 1,
+										overflow: TextOverflow.ellipsis,
+										style: const TextStyle(
+											fontSize: 12.5,
+											fontWeight: FontWeight.w600,
+											color: Paleta.textoSecundario,
+										),
 									),
-									_BotonCircularLlamada(
-										icono: Icons.close_rounded,
-										etiqueta: 'Volver al chat',
-										activo: false,
-										alPresionar: widget.alCerrar,
+									const SizedBox(height: 2),
+									const Text(
+										'Tutor de Voz Geograf-IA',
+										maxLines: 1,
+										overflow: TextOverflow.ellipsis,
+										style: TextStyle(
+											fontSize: 20,
+											fontWeight: FontWeight.w800,
+											color: Paleta.textoPrimario,
+											letterSpacing: -0.4,
+										),
+									),
+									const Spacer(),
+									Mascota(
+										estado: c.estado,
+										tamano: tamEsfera,
+										mostrarEtiqueta: false,
+										mostrarOrejas: false,
+									),
+									SizedBox(height: pantallaBaja ? 12 : 20),
+									Text(
+										_tiempoFormateado,
+										style: const TextStyle(
+											fontSize: 24,
+											fontWeight: FontWeight.w800,
+											color: Paleta.textoPrimario,
+										),
+									),
+									const SizedBox(height: 2),
+									Text(
+										_subtituloEstado(c.estado),
+										textAlign: TextAlign.center,
+										maxLines: 2,
+										overflow: TextOverflow.ellipsis,
+										style: const TextStyle(
+											fontSize: 13.5,
+											fontWeight: FontWeight.w500,
+											color: Paleta.textoSecundario,
+										),
+									),
+									if (ultimaRespuesta != null) ...<Widget>[
+										const SizedBox(height: 10),
+										Container(
+											padding: const EdgeInsets.all(12),
+											constraints: const BoxConstraints(
+												maxWidth: 440,
+											),
+											decoration: BoxDecoration(
+												color: Colors.white.withValues(
+													alpha: 0.92,
+												),
+												borderRadius:
+													BorderRadius.circular(16),
+												border: Border.all(
+													color: Paleta.bordeSuave,
+												),
+											),
+											child: Column(
+												children: <Widget>[
+													Text(
+														ultimaRespuesta.texto,
+														maxLines:
+															pantallaBaja ? 2 : 3,
+														overflow: TextOverflow
+															.ellipsis,
+														textAlign:
+															TextAlign.center,
+														style: const TextStyle(
+															fontSize: 13,
+															color: Paleta
+																.textoPrimario,
+															height: 1.3,
+														),
+													),
+													if (ultimaRespuesta
+														.citaFuente
+														.isNotEmpty) ...<Widget>[
+														const SizedBox(
+															height: 4,
+														),
+														Text(
+															'📖 ${ultimaRespuesta.citaFuente}',
+															maxLines: 1,
+															overflow:
+																TextOverflow
+																	.ellipsis,
+															style:
+																const TextStyle(
+																	fontSize:
+																		11,
+																	fontWeight:
+																		FontWeight
+																			.w700,
+																	color: Paleta
+																		.verdeBosque,
+																),
+														),
+													],
+												],
+											),
+										),
+									],
+									const Spacer(),
+									SizedBox(
+										height: 34,
+										child: ListView.separated(
+											scrollDirection: Axis.horizontal,
+											itemCount:
+												Reglas.preguntasVozDemo.length,
+											separatorBuilder: (_, __) =>
+												const SizedBox(width: 6),
+											itemBuilder: (
+												BuildContext context,
+												int i,
+											) {
+												final String frase = Reglas
+													.preguntasVozDemo[i];
+												return ActionChip(
+													visualDensity:
+														VisualDensity.compact,
+													backgroundColor:
+														Colors.white,
+													side: const BorderSide(
+														color:
+															Paleta.bordeSuave,
+													),
+													avatar: const Icon(
+														Icons
+															.record_voice_over_rounded,
+														size: 14,
+														color:
+															Paleta.verdeBosque,
+													),
+													label: Text(
+														frase,
+														style: const TextStyle(
+															fontSize: 12,
+														),
+													),
+													onPressed: c.ocupado
+														? null
+														: () =>
+															c.preguntarPorVoz(
+																fraseSimulada:
+																	frase,
+															),
+												);
+											},
+										),
+									),
+									const SizedBox(height: 14),
+									Row(
+										mainAxisAlignment:
+											MainAxisAlignment.spaceBetween,
+										children: <Widget>[
+											_BotonCircularLlamada(
+												icono: c.estado ==
+														EstadoMascota.escuchando
+													? Icons.graphic_eq_rounded
+													: Icons.mic_none_rounded,
+												etiqueta: 'Hablar por voz',
+												activo: c.estado ==
+													EstadoMascota.escuchando,
+												alPresionar: c.ocupado
+													? null
+													: () => c.preguntarPorVoz(),
+											),
+											_BotonCircularLlamada(
+												icono: Icons.close_rounded,
+												etiqueta: 'Volver al chat',
+												activo: false,
+												alPresionar: widget.alCerrar,
+											),
+										],
 									),
 								],
 							),
-						],
-					),
+						);
+					},
 				),
 			),
 		);
@@ -268,22 +316,23 @@ class _BotonCircularLlamada extends StatelessWidget {
 				customBorder: const CircleBorder(),
 				child: AnimatedContainer(
 					duration: const Duration(milliseconds: 220),
-					width: 68,
-					height: 68,
+					width: 58,
+					height: 58,
 					decoration: BoxDecoration(
 						shape: BoxShape.circle,
 						color: activo ? Paleta.verdeBosque : Colors.white,
+						border: Border.all(color: Paleta.bordeSuave),
 						boxShadow: <BoxShadow>[
 							BoxShadow(
-								color: Colors.black.withValues(alpha: 0.08),
-								blurRadius: 16,
-								offset: const Offset(0, 6),
+								color: Colors.black.withValues(alpha: 0.06),
+								blurRadius: 12,
+								offset: const Offset(0, 4),
 							),
 						],
 					),
 					child: Icon(
 						icono,
-						size: 28,
+						size: 24,
 						color: activo ? Colors.white : Paleta.textoPrimario,
 					),
 				),
@@ -291,4 +340,3 @@ class _BotonCircularLlamada extends StatelessWidget {
 		);
 	}
 }
-

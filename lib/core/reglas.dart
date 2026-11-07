@@ -33,9 +33,9 @@ class Reglas {
 	static const double velocidadVozMax = 1.4;
 	static const double velocidadVozPorDefecto = 1.0;
 
-	static const int tamanoTextoMin = 16;
-	static const int tamanoTextoMax = 26;
-	static const int tamanoTextoPorDefecto = 19;
+	static const int tamanoTextoMin = 14;
+	static const int tamanoTextoMax = 22;
+	static const int tamanoTextoPorDefecto = 16;
 
 	// Pregunta pedagogica de comprobacion (Objetivo General - Equipo6_App_Greograf-ia.pdf):
 	// Cada N consultas resueltas, el tutor lanza un reto breve para verificar comprension.
@@ -114,4 +114,3 @@ class Reglas {
 		'¿Por qué tiembla en México?',
 	];
 }
-
