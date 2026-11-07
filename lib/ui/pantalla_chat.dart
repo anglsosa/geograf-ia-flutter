@@ -4,6 +4,7 @@ import '../controllers/controlador_tutor.dart';
 import '../core/reglas.dart';
 import '../core/tema.dart';
 import '../models/modelos.dart';
+import '../services/servicios.dart';
 import 'mascota.dart';
 import 'menu_lateral.dart';
 import 'pantalla_configuracion.dart';
@@ -28,7 +29,6 @@ class _PantallaChatState extends State<PantallaChat> {
 	final TextEditingController _campoTexto = TextEditingController();
 	final ScrollController _scroll = ScrollController();
 	bool _modoLlamadaVoz = false;
-	bool _estaGrabando = false;
 
 	@override
 	void initState() {
@@ -44,9 +44,7 @@ class _PantallaChatState extends State<PantallaChat> {
 	}
 
 	/// Metodo oficial del UML: +iniciar() : void
-	void iniciar() {
-		_estaGrabando = false;
-	}
+	void iniciar() {}
 
 	/// Metodo oficial del UML: +enviarPreguntaTexto(texto: String) : void
 	Future<void> enviarPreguntaTexto(String texto) async {
@@ -62,17 +60,25 @@ class _PantallaChatState extends State<PantallaChat> {
 	}
 
 	/// Metodo oficial del UML: +alPresionarMicrofono() : void
+	/// Primer toque: escucha. Segundo toque mientras escucha: termina y envia.
 	Future<void> alPresionarMicrofono() async {
-		setState(() {
-			_estaGrabando = true;
-		});
+		final ControladorTutor c = widget.controlador;
+		if (c.estado == EstadoMascota.escuchando) {
+			await c.detenerEscucha();
+			return;
+		}
 		_irAlUltimoMensaje();
-		await widget.controlador.preguntarPorVoz();
-		if (mounted) {
-			setState(() {
-				_estaGrabando = false;
-			});
-			_irAlUltimoMensaje();
+		await c.preguntarPorVoz();
+		_irAlUltimoMensaje();
+		if (mounted && c.errorVoz.isNotEmpty) {
+			ScaffoldMessenger.of(context).showSnackBar(
+				SnackBar(
+					content: Text(c.errorVoz),
+					behavior: SnackBarBehavior.floating,
+					duration: const Duration(seconds: 6),
+				),
+			);
+			c.limpiarErrorVoz();
 		}
 	}
 
@@ -160,11 +166,105 @@ class _PantallaChatState extends State<PantallaChat> {
 								? _construirBienvenidaHero(context, c)
 								: _construirListaConversacion(context, c),
 						),
+						_construirAvisoModelo(context, c),
+						if (c.estado == EstadoMascota.escuchando)
+							_construirIndicadorEscucha(c),
 						if (c.estado == EstadoMascota.pensando)
 							_construirIndicadorPensando(),
 						_construirBarraInferiorEntrada(context, c),
 					],
 				),
+			),
+		);
+	}
+
+	/// Muestra en vivo lo que el microfono va entendiendo.
+	Widget _construirIndicadorEscucha(ControladorTutor c) {
+		final String parcial = c.textoVozParcial;
+		return Container(
+			width: double.infinity,
+			margin: const EdgeInsets.fromLTRB(14, 0, 14, 6),
+			padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+			decoration: BoxDecoration(
+				color: const Color(0xFFFCEDEA),
+				borderRadius: BorderRadius.circular(12),
+				border: Border.all(color: const Color(0xFFE8B4AC)),
+			),
+			child: Row(
+				children: <Widget>[
+					const Icon(
+						Icons.mic_rounded,
+						size: 18,
+						color: Color(0xFFC0392B),
+					),
+					const SizedBox(width: 8),
+					Expanded(
+						child: Text(
+							parcial.isEmpty
+								? 'Te escucho… habla y toca "Listo" al terminar'
+								: '“$parcial”',
+							maxLines: 2,
+							overflow: TextOverflow.ellipsis,
+							style: const TextStyle(
+								fontSize: 13,
+								fontWeight: FontWeight.w600,
+								color: Paleta.textoPrimario,
+							),
+						),
+					),
+				],
+			),
+		);
+	}
+
+	/// Aviso discreto sobre el estado del modelo de IA (solo si no esta listo).
+	Widget _construirAvisoModelo(BuildContext context, ControladorTutor c) {
+		final MotorLLMLocal motor = c.pipelineRAG.motorLLM;
+		String texto = '';
+		IconData icono = Icons.info_outline_rounded;
+		switch (motor.estado) {
+			case EstadoModelo.listo:
+				return const SizedBox.shrink();
+			case EstadoModelo.cargando:
+			case EstadoModelo.instalado:
+				texto = 'Despertando al tutor de IA… mientras tanto respondo con el libro.';
+				icono = Icons.hourglass_top_rounded;
+			case EstadoModelo.descargando:
+				texto =
+					'Descargando el modelo de IA: ${(motor.progresoDescarga * 100).round()}%';
+				icono = Icons.downloading_rounded;
+			case EstadoModelo.noInstalado:
+			case EstadoModelo.error:
+				if (!MotorLLMLocal.plataformaSoportada) {
+					return const SizedBox.shrink();
+				}
+				texto =
+					'Modo básico: respondo con el texto del libro. Instala el modelo de IA en Configuración.';
+		}
+		return Container(
+			width: double.infinity,
+			margin: const EdgeInsets.fromLTRB(14, 0, 14, 6),
+			padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+			decoration: BoxDecoration(
+				color: Paleta.cremaTarjeta,
+				borderRadius: BorderRadius.circular(12),
+				border: Border.all(color: Paleta.bordeSuave),
+			),
+			child: Row(
+				children: <Widget>[
+					Icon(icono, size: 16, color: Paleta.verdeBosque),
+					const SizedBox(width: 8),
+					Expanded(
+						child: Text(
+							texto,
+							style: const TextStyle(
+								fontSize: 11.5,
+								fontWeight: FontWeight.w600,
+								color: Paleta.textoSecundario,
+							),
+						),
+					),
+				],
 			),
 		);
 	}
@@ -607,7 +707,7 @@ class _PantallaChatState extends State<PantallaChat> {
 										tipoIlustracion: m.tipoIlustracion,
 										notaIlustracion: m.notaIlustracion,
 									),
-								if (!esAlumno) ...<Widget>[
+								if (!esAlumno && !m.enProgreso) ...<Widget>[
 									const SizedBox(height: 8),
 									Wrap(
 										spacing: 6,
@@ -642,6 +742,18 @@ class _PantallaChatState extends State<PantallaChat> {
 															color: Paleta
 																.verdeBosque,
 														),
+													),
+												),
+											if (!m.esRemisionMaestro && m.citaFuente.isNotEmpty)
+												Text(
+													m.generadoPorIA
+														? '🤖 IA local'
+														: '📚 Modo básico',
+													style: const TextStyle(
+														fontSize: 11,
+														fontWeight: FontWeight.w700,
+														color: Paleta
+															.textoSecundario,
 													),
 												),
 											if (m.tiempoMs > 0)
@@ -852,7 +964,7 @@ class _PantallaChatState extends State<PantallaChat> {
 					// Boton Hablar compacto y amigable
 					FilledButton.icon(
 						style: FilledButton.styleFrom(
-							backgroundColor: _estaGrabando
+							backgroundColor: c.estado == EstadoMascota.escuchando
 								? const Color(0xFFC0392B)
 								: Paleta.verdeBoton,
 							foregroundColor: Colors.white,
@@ -867,13 +979,13 @@ class _PantallaChatState extends State<PantallaChat> {
 						),
 						onPressed: c.ocupado ? null : alPresionarMicrofono,
 						icon: Icon(
-							_estaGrabando
+							c.estado == EstadoMascota.escuchando
 								? Icons.graphic_eq_rounded
 								: Icons.mic_rounded,
 							size: 19,
 						),
 						label: Text(
-							_estaGrabando ? 'Oído…' : 'Hablar',
+							c.estado == EstadoMascota.escuchando ? 'Listo' : 'Hablar',
 							style: const TextStyle(
 								fontSize: 13.5,
 								fontWeight: FontWeight.w700,

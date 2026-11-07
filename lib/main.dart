@@ -22,6 +22,13 @@ class _GeografIaAppState extends State<GeografIaApp> {
 	late final ControladorTutor _controlador = ControladorTutor();
 
 	@override
+	void initState() {
+		super.initState();
+		// Detecta el modelo de IA instalado y lo carga en segundo plano.
+		_controlador.iniciar();
+	}
+
+	@override
 	void dispose() {
 		_controlador.dispose();
 		super.dispose();

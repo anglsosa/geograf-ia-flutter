@@ -31,11 +31,6 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 	String _estadoUSB = 'USB sin comprobar';
 	ReporteActualizacion? _ultimoReporte;
 
-	// Estado de descarga en 1 clic del modelo LLM local (6_DisenoUI.pdf pag. 6)
-	bool _descargandoModelo = false;
-	double _progresoModelo = 0.0;
-	String _etapaDescarga = '';
-
 	@override
 	void initState() {
 		super.initState();
@@ -81,43 +76,81 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 		widget.controlador.actualizarPreferencias(tamanoTexto: tamano);
 	}
 
-	/// Descarga e instala en 1 solo clic el modelo GGUF cuantizado + voz TTS.
+	/// Descarga e instala en 1 clic el modelo GGUF (una sola vez) y lo carga en
+	/// memoria. El progreso lo publica el propio motor (sobrevive a cambiar de pantalla).
 	Future<void> _instalarModeloOfflineClick() async {
-		if (_descargandoModelo) {
+		final MotorLLMLocal motor = widget.controlador.pipelineRAG.motorLLM;
+		if (motor.descargando || motor.cargando || motor.modeloCargado) {
 			return;
 		}
-		setState(() {
-			_descargandoModelo = true;
-			_progresoModelo = 0.05;
-			_etapaDescarga = 'Iniciando descarga del motor LLM local…';
-		});
-
-		final MotorLLMLocal motor = widget.controlador.pipelineRAG.motorLLM;
-		final bool ok = await motor.instalarModeloConUnClick(
-			alProgresar: (double p, String etapa) {
-				if (mounted) {
-					setState(() {
-						_progresoModelo = p;
-						_etapaDescarga = etapa;
-					});
-				}
-			},
-		);
-
+		final bool ok = await motor.instalarModeloConUnClick();
 		if (!mounted) {
 			return;
 		}
-		setState(() {
-			_descargandoModelo = false;
-		});
-
 		if (ok) {
 			mostrarNotificacionExito(
-				'¡Modelo ${motor.nombreModeloActivo} y narrador de voz listos para usar sin conexión!',
+				'¡Modelo de IA instalado! Ya puedes preguntar sin conexión.',
 			);
 			await widget.controlador.reproducirRespuestaVoz(
-				'¡Hola! El modelo de inteligencia artificial y tu libro de geografía ya están instalados en este teléfono para funcionar sin internet.',
+				'¡Hola! El modelo de inteligencia artificial ya está instalado en este teléfono para funcionar sin internet.',
 			);
+		} else if (motor.ultimoError.isNotEmpty) {
+			_mostrarError(motor.ultimoError);
+		}
+	}
+
+	/// Carga en memoria un modelo que ya esta descargado.
+	Future<void> _cargarModeloClick() async {
+		final MotorLLMLocal motor = widget.controlador.pipelineRAG.motorLLM;
+		if (motor.descargando || motor.cargando || motor.modeloCargado) {
+			return;
+		}
+		final bool ok = await motor.cargarModeloCuantizado(motor.rutaModelo);
+		if (!mounted) {
+			return;
+		}
+		if (ok) {
+			mostrarNotificacionExito('¡Modelo de IA cargado y listo!');
+		} else if (motor.ultimoError.isNotEmpty) {
+			_mostrarError(motor.ultimoError);
+		}
+	}
+
+	void _mostrarError(String mensaje) {
+		ScaffoldMessenger.of(context).showSnackBar(
+			SnackBar(
+				content: Text(mensaje),
+				backgroundColor: Colors.red.shade700,
+				behavior: SnackBarBehavior.floating,
+				duration: const Duration(seconds: 6),
+			),
+		);
+	}
+
+	Future<void> _confirmarEliminarModelo() async {
+		final MotorLLMLocal motor = widget.controlador.pipelineRAG.motorLLM;
+		final bool? confirmado = await showDialog<bool>(
+			context: context,
+			builder: (BuildContext ctx) => AlertDialog(
+				title: const Text('¿Borrar el modelo de IA?'),
+				content: const Text(
+					'Se liberarán ~1.1 GB. La app seguirá respondiendo con el texto '
+					'de los libros SEP y podrás volver a descargarlo cuando quieras.',
+				),
+				actions: <Widget>[
+					TextButton(
+						onPressed: () => Navigator.of(ctx).pop(false),
+						child: const Text('Cancelar'),
+					),
+					FilledButton(
+						onPressed: () => Navigator.of(ctx).pop(true),
+						child: const Text('Borrar'),
+					),
+				],
+			),
+		);
+		if (confirmado == true) {
+			await motor.eliminarModelo();
 		}
 	}
 
@@ -373,8 +406,6 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 		AlmacenVectoresChroma almacen,
 		MotorLLMLocal motor,
 	) {
-		final bool instalado = motor.paqueteOfflineInstalado;
-
 		return Container(
 			padding: const EdgeInsets.all(14),
 			decoration: BoxDecoration(
@@ -491,104 +522,189 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 						);
 					}),
 					const SizedBox(height: 4),
-					// Boton de 1 clic para descargar e instalar el modelo GGUF + voz offline
-					// (identico al boton "Descargar todo para usar sin conexion" de 6_DisenoUI.pdf)
-					SizedBox(
-						width: double.infinity,
-						child: FilledButton.icon(
-							style: FilledButton.styleFrom(
-								backgroundColor: instalado
-									? Paleta.verdePino
-									: Paleta.verdeBoton,
-								foregroundColor: Colors.white,
-								padding: const EdgeInsets.symmetric(
-									vertical: 11,
-									horizontal: 12,
-								),
-								shape: RoundedRectangleBorder(
-									borderRadius: BorderRadius.circular(14),
-								),
-							),
-							onPressed: _descargandoModelo
-								? null
-								: _instalarModeloOfflineClick,
-							icon: Icon(
-								instalado
-									? Icons.offline_pin_rounded
-									: Icons.download_for_offline_rounded,
-								size: 19,
-							),
-							label: Text(
-								instalado
-									? 'Modelo IA + Voz Offline instalados ✅'
-									: 'Descargar todo para usar sin conexión (1 clic)',
-								textAlign: TextAlign.center,
-								style: const TextStyle(
-									fontSize: 13,
-									fontWeight: FontWeight.w700,
-								),
-							),
-						),
-					),
-					if (_descargandoModelo || _etapaDescarga.isNotEmpty) ...<Widget>[
-						const SizedBox(height: 8),
-						ClipRRect(
-							borderRadius: BorderRadius.circular(8),
-							child: LinearProgressIndicator(
-								value: _progresoModelo,
-								minHeight: 7,
-								backgroundColor: Paleta.salviaSuave,
-								valueColor: const AlwaysStoppedAnimation<Color>(
-									Paleta.verdeBosque,
-								),
-							),
-						),
-						const SizedBox(height: 4),
-						Text(
-							'${(_progresoModelo * 100).round()}% · $_etapaDescarga',
-							style: const TextStyle(
-								fontSize: 11.5,
-								fontWeight: FontWeight.w600,
-								color: Paleta.verdeBosque,
-							),
-						),
-					],
-					const SizedBox(height: 8),
-					Container(
-						width: double.infinity,
-						padding: const EdgeInsets.symmetric(
-							horizontal: 12,
-							vertical: 8,
-						),
-						decoration: BoxDecoration(
-							color: Paleta.cremaTarjeta,
-							borderRadius: BorderRadius.circular(12),
-							border: Border.all(color: Paleta.bordeSuave),
-						),
-						child: Row(
-							children: <Widget>[
-								const Icon(
-									Icons.memory_rounded,
-									color: Paleta.verdeBosque,
-									size: 17,
-								),
-								const SizedBox(width: 8),
-								Expanded(
-									child: Text(
-										'${motor.nombreModeloActivo} · ${almacen.totalFragmentos} bloques SEP · ${almacen.obtenerAlmacenamientoUsadoMB().toStringAsFixed(0)} MB / 4096 MB (RNF-09)',
-										style: const TextStyle(
-											color: Paleta.textoSecundario,
-											fontSize: 11,
-											fontWeight: FontWeight.w600,
-										),
-									),
-								),
-							],
-						),
-					),
+					..._bloqueModeloIA(motor, almacen),
 				],
 			),
 		);
+	}
+
+	/// Boton de 1 clic, progreso, errores y estado real del modelo de IA local.
+	List<Widget> _bloqueModeloIA(
+		MotorLLMLocal motor,
+		AlmacenVectoresChroma almacen,
+	) {
+		final EstadoModelo estado = motor.estado;
+		final bool soportado = MotorLLMLocal.plataformaSoportada;
+		final bool listo = estado == EstadoModelo.listo;
+		final bool descargando = estado == EstadoModelo.descargando;
+		final bool cargando = estado == EstadoModelo.cargando;
+		final int porcentaje = (motor.progresoDescarga * 100).round();
+
+		String etiqueta;
+		IconData icono;
+		VoidCallback? accion;
+		if (!soportado) {
+			etiqueta = 'El modelo de IA solo funciona en la app del teléfono';
+			icono = Icons.phone_android_rounded;
+			accion = null;
+		} else if (listo) {
+			etiqueta = 'Modelo de IA listo (funciona sin internet) ✅';
+			icono = Icons.offline_pin_rounded;
+			accion = null;
+		} else if (cargando) {
+			etiqueta = 'Cargando el modelo en memoria…';
+			icono = Icons.hourglass_top_rounded;
+			accion = null;
+		} else if (descargando) {
+			etiqueta = 'Descargando modelo de IA… $porcentaje%';
+			icono = Icons.downloading_rounded;
+			accion = null;
+		} else if (estado == EstadoModelo.instalado) {
+			etiqueta = 'Modelo descargado · Toca para cargarlo';
+			icono = Icons.play_circle_outline_rounded;
+			accion = _cargarModeloClick;
+		} else if (estado == EstadoModelo.error) {
+			etiqueta = 'Reintentar descarga del modelo de IA';
+			icono = Icons.refresh_rounded;
+			accion = _instalarModeloOfflineClick;
+		} else {
+			etiqueta = 'Descargar modelo de IA (≈1.1 GB)';
+			icono = Icons.download_for_offline_rounded;
+			accion = _instalarModeloOfflineClick;
+		}
+
+		final bool mostrarProgreso =
+			descargando || (!listo && motor.etapaDescarga.isNotEmpty);
+		final double totalMB =
+			motor.tamanoModeloMB + almacen.obtenerAlmacenamientoUsadoMB();
+
+		return <Widget>[
+			if (soportado && !listo && !motor.paqueteOfflineInstalado)
+				const Padding(
+					padding: EdgeInsets.only(bottom: 8),
+					child: Text(
+						'Necesitas internet solo para esta descarga (≈1.1 GB: usa Wi-Fi). '
+						'Después el tutor funciona sin conexión.',
+						style: TextStyle(
+							fontSize: 11.5,
+							color: Paleta.textoSecundario,
+						),
+					),
+				),
+			SizedBox(
+				width: double.infinity,
+				child: FilledButton.icon(
+					style: FilledButton.styleFrom(
+						backgroundColor:
+							listo ? Paleta.verdePino : Paleta.verdeBoton,
+						disabledBackgroundColor:
+							listo ? Paleta.verdePino : Paleta.salviaSuave,
+						foregroundColor: Colors.white,
+						disabledForegroundColor:
+							listo ? Colors.white : Paleta.verdeBosque,
+						padding: const EdgeInsets.symmetric(
+							vertical: 11,
+							horizontal: 12,
+						),
+						shape: RoundedRectangleBorder(
+							borderRadius: BorderRadius.circular(14),
+						),
+					),
+					onPressed: accion,
+					icon: Icon(icono, size: 19),
+					label: Text(
+						etiqueta,
+						textAlign: TextAlign.center,
+						style: const TextStyle(
+							fontSize: 13,
+							fontWeight: FontWeight.w700,
+						),
+					),
+				),
+			),
+			if (mostrarProgreso) ...<Widget>[
+				const SizedBox(height: 8),
+				ClipRRect(
+					borderRadius: BorderRadius.circular(8),
+					child: LinearProgressIndicator(
+						value: cargando ? null : motor.progresoDescarga,
+						minHeight: 7,
+						backgroundColor: Paleta.salviaSuave,
+						valueColor: const AlwaysStoppedAnimation<Color>(
+							Paleta.verdeBosque,
+						),
+					),
+				),
+				const SizedBox(height: 4),
+				Text(
+					motor.etapaDescarga,
+					style: const TextStyle(
+						fontSize: 11.5,
+						fontWeight: FontWeight.w600,
+						color: Paleta.verdeBosque,
+					),
+				),
+			],
+			if (descargando)
+				Align(
+					alignment: Alignment.centerRight,
+					child: TextButton.icon(
+						onPressed: motor.cancelarDescarga,
+						icon: const Icon(Icons.close_rounded, size: 16),
+						label: const Text('Cancelar descarga'),
+					),
+				),
+			if (motor.ultimoError.isNotEmpty) ...<Widget>[
+				const SizedBox(height: 6),
+				Text(
+					motor.ultimoError,
+					style: TextStyle(
+						fontSize: 11.5,
+						fontWeight: FontWeight.w600,
+						color: Colors.red.shade700,
+					),
+				),
+			],
+			const SizedBox(height: 8),
+			Container(
+				width: double.infinity,
+				padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+				decoration: BoxDecoration(
+					color: Paleta.cremaTarjeta,
+					borderRadius: BorderRadius.circular(12),
+					border: Border.all(color: Paleta.bordeSuave),
+				),
+				child: Row(
+					children: <Widget>[
+						const Icon(
+							Icons.memory_rounded,
+							color: Paleta.verdeBosque,
+							size: 17,
+						),
+						const SizedBox(width: 8),
+						Expanded(
+							child: Text(
+								'${motor.nombreModeloActivo} · ${almacen.totalFragmentos} bloques SEP · ${totalMB.toStringAsFixed(0)} MB / 4096 MB (RNF-09)',
+								style: const TextStyle(
+									color: Paleta.textoSecundario,
+									fontSize: 11,
+									fontWeight: FontWeight.w600,
+								),
+							),
+						),
+					],
+				),
+			),
+			if (motor.paqueteOfflineInstalado && !descargando && !cargando)
+				Align(
+					alignment: Alignment.centerRight,
+					child: TextButton.icon(
+						onPressed: _confirmarEliminarModelo,
+						icon: const Icon(Icons.delete_outline_rounded, size: 16),
+						label: const Text('Borrar modelo (liberar 1.1 GB)'),
+					),
+				),
+		];
 	}
 
 	/// Tarjeta "Actualizar sistema (USB)" (RF-05 y RF-11).

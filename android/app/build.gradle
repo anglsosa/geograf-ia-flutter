@@ -42,7 +42,8 @@ android {
 
 	defaultConfig {
 		applicationId = "com.example.geograf_ia"
-		minSdk = flutter.minSdkVersion
+		// llama.cpp precompilado (llamadart) requiere Android 7.0 (API 24) o superior.
+		minSdk = Math.max(flutter.minSdkVersion, 24)
 		targetSdk = flutter.targetSdkVersion
 		versionCode = flutterVersionCode.toInteger()
 		versionName = flutterVersionName

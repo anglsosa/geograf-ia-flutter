@@ -8,6 +8,10 @@
 		<intent>
 			<action android:name="android.intent.action.TTS_SERVICE" />
 		</intent>
+		<!-- Requerido en Android 11+ para que speech_to_text encuentre el reconocedor de voz -->
+		<intent>
+			<action android:name="android.speech.RecognitionService" />
+		</intent>
 	</queries>
 
 	<application

@@ -4,8 +4,11 @@ description: Geograf-IA - Tutor Local Inteligente 100% Offline con RAG sobre lib
 publish_to: "none"
 version: 1.0.0+1
 
+# llamadart (llama.cpp ya precompilado) exige Dart >= 3.10.7 / Flutter >= 3.38.
+# En FlutLab elige Flutter 3.41 (o 3.47) antes de hacer Pub Get.
 environment:
-  sdk: ">=3.2.0 <4.0.0"
+  sdk: ^3.10.7
+  flutter: ">=3.38.0"
 
 dependencies:
   flutter:
@@ -13,6 +16,15 @@ dependencies:
   provider: ^6.1.2
   flutter_tts: ^4.0.2
   http: ^1.2.1
+  # Motor de inferencia GGUF local (llama.cpp). Descarga el modelo con
+  # reanudacion, verifica SHA-256 y ejecuta el LLM 100% en el telefono.
+  llamadart: ^0.18.0
+  # Voz a texto real (reconocedor de Android; sin internet si el telefono tiene
+  # el paquete de espanol de Voz de Google). Version fija: 7.4.0 funciona con
+  # Flutter 3.38-3.47; las 7.5+ exigen Dart 3.12.
+  speech_to_text: 7.4.0
+  # Carpeta privada y persistente de la app donde vive el modelo (~1.1 GB).
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:

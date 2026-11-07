@@ -53,10 +53,33 @@ class _VistaLlamadaVozState extends State<VistaLlamadaVoz> {
 		return '$m:$s';
 	}
 
+	/// Primer toque: escucha. Segundo toque mientras escucha: termina y envia.
+	Future<void> _hablar() async {
+		final ControladorTutor c = widget.controlador;
+		if (c.estado == EstadoMascota.escuchando) {
+			await c.detenerEscucha();
+			return;
+		}
+		await c.preguntarPorVoz();
+		if (mounted && c.errorVoz.isNotEmpty) {
+			ScaffoldMessenger.of(context).showSnackBar(
+				SnackBar(
+					content: Text(c.errorVoz),
+					behavior: SnackBarBehavior.floating,
+					duration: const Duration(seconds: 6),
+				),
+			);
+			c.limpiarErrorVoz();
+		}
+	}
+
 	String _subtituloEstado(EstadoMascota estado) {
 		switch (estado) {
 			case EstadoMascota.escuchando:
-				return 'Geograf-IA te está escuchando…';
+				final String parcial = widget.controlador.textoVozParcial;
+				return parcial.isEmpty
+					? 'Geograf-IA te está escuchando… toca de nuevo al terminar'
+					: '“$parcial”';
 			case EstadoMascota.pensando:
 				return 'Consultando libro SEP de ${widget.controlador.configuracion.gradoActual}° grado…';
 			case EstadoMascota.hablando:
@@ -250,11 +273,7 @@ class _VistaLlamadaVozState extends State<VistaLlamadaVoz> {
 													),
 													onPressed: c.ocupado
 														? null
-														: () =>
-															c.preguntarPorVoz(
-																fraseSimulada:
-																	frase,
-															),
+														: () => c.enviarPregunta(frase),
 												);
 											},
 										),
@@ -272,9 +291,7 @@ class _VistaLlamadaVozState extends State<VistaLlamadaVoz> {
 												etiqueta: 'Hablar por voz',
 												activo: c.estado ==
 													EstadoMascota.escuchando,
-												alPresionar: c.ocupado
-													? null
-													: () => c.preguntarPorVoz(),
+												alPresionar: c.ocupado ? null : _hablar,
 											),
 											_BotonCircularLlamada(
 												icono: Icons.close_rounded,

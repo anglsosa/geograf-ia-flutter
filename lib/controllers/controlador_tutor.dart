@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../core/reglas.dart';
@@ -20,6 +22,31 @@ class ControladorTutor extends ChangeNotifier {
 			GestorActualizacionUSB(
 				almacenVectores: _pipelineRAG.baseVectores,
 			);
+		// Cada cambio del motor de IA (descarga, carga, listo, error) refresca la UI.
+		_pipelineRAG.motorLLM.addListener(notifyListeners);
+	}
+
+	bool _liberado = false;
+
+	/// Arranque de la app: detecta si el modelo de IA ya esta instalado y lo
+	/// carga en memoria en segundo plano (no bloquea la interfaz).
+	Future<void> iniciar() async {
+		await _pipelineRAG.motorLLM.inicializar();
+	}
+
+	@override
+	void notifyListeners() {
+		if (!_liberado) {
+			super.notifyListeners();
+		}
+	}
+
+	@override
+	void dispose() {
+		_liberado = true;
+		_pipelineRAG.motorLLM.removeListener(notifyListeners);
+		_pipelineRAG.motorLLM.dispose();
+		super.dispose();
 	}
 
 	final ServicioRAG _pipelineRAG;
@@ -37,6 +64,8 @@ class ControladorTutor extends ChangeNotifier {
 
 	DateTime? _ultimaConsulta;
 	bool _ocupado = false;
+	String _textoVozParcial = '';
+	String _errorVoz = '';
 	int _consultasExitosasEnSesion = 0;
 	int _retosCorrectos = 0;
 	int _retosTotales = 0;
@@ -46,6 +75,17 @@ class ControladorTutor extends ChangeNotifier {
 	ConfiguracionAula get configuracion => _configuracionAula;
 	GestorActualizacionUSB get gestorUSB => _gestorUSB;
 	EstadoMascota get estado => _estadoMascota;
+
+	/// Lo que el reconocedor de voz va entendiendo mientras el nino habla.
+	String get textoVozParcial => _textoVozParcial;
+
+	/// Ultimo problema de voz (permiso, sin espanol, no se entendio...).
+	String get errorVoz => _errorVoz;
+
+	/// Marca el error de voz como ya mostrado.
+	void limpiarErrorVoz() {
+		_errorVoz = '';
+	}
 	List<MensajeChat> get mensajes => List<MensajeChat>.unmodifiable(_mensajes);
 	List<String> get consultasRecientes =>
 		List<String>.unmodifiable(_consultasRecientes);
@@ -116,6 +156,8 @@ class ControladorTutor extends ChangeNotifier {
 
 	/// Metodo oficial del UML: +reiniciarContextoSesion() : void (RF-09)
 	void reiniciarContextoSesion() {
+		_pipelineRAG.motorLLM.cancelarGeneracion();
+		_servicioAudio.cancelarEscucha();
 		_servicioAudio.detenerAudio();
 		_mensajes.clear();
 		_estadoMascota = EstadoMascota.reposo;
@@ -124,7 +166,10 @@ class ControladorTutor extends ChangeNotifier {
 	}
 
 	/// Metodo oficial del UML: +procesarConsulta(preguntaEntrada: String) : ResultadoConsulta
-	Future<ResultadoConsulta> procesarConsulta(String preguntaEntrada) async {
+	Future<ResultadoConsulta> procesarConsulta(
+		String preguntaEntrada, {
+		void Function(String parcial)? alTextoParcial,
+	}) async {
 		final String? pregunta = sanear(preguntaEntrada);
 		if (pregunta == null) {
 			return const ResultadoConsulta(
@@ -136,6 +181,7 @@ class ControladorTutor extends ChangeNotifier {
 			.generarRespuestaFundamentada(
 				pregunta,
 				_configuracionAula.obtenerGrado(),
+				alTextoParcial: alTextoParcial,
 			)
 			.timeout(Reglas.tiempoMaximoRespuesta);
 	}
@@ -162,12 +208,44 @@ class ControladorTutor extends ChangeNotifier {
 		_estadoMascota = EstadoMascota.pensando;
 		notifyListeners();
 
-		try {
-			final ResultadoConsulta resultado = await procesarConsulta(pregunta);
+		// Respuesta que se va escribiendo en pantalla mientras el LLM genera.
+		final String idRespuesta =
+			'msg-${DateTime.now().microsecondsSinceEpoch}-bot';
+		MensajeChat? burbujaParcial;
 
+		try {
+			final ResultadoConsulta resultado = await procesarConsulta(
+				pregunta,
+				alTextoParcial: (String parcial) {
+					if (_liberado || parcial.trim().isEmpty) {
+						return;
+					}
+					final MensajeChat? actual = burbujaParcial;
+					if (actual == null) {
+						final MensajeChat nueva = MensajeChat(
+							id: idRespuesta,
+							rol: RolMensaje.tutor,
+							texto: parcial,
+							generadoPorIA: true,
+							enProgreso: true,
+						);
+						burbujaParcial = nueva;
+						_mensajes.add(nueva);
+					} else {
+						actual.texto = parcial;
+					}
+					notifyListeners();
+				},
+			);
+
+			// Reemplaza la burbuja en progreso por la respuesta final con su cita.
+			final MensajeChat? parcialPrevio = burbujaParcial;
+			if (parcialPrevio != null) {
+				_mensajes.remove(parcialPrevio);
+			}
 			_mensajes.add(
 				MensajeChat(
-					id: 'msg-${DateTime.now().microsecondsSinceEpoch}-bot',
+					id: idRespuesta,
 					rol: RolMensaje.tutor,
 					texto: resultado.textoRespuesta,
 					citaFuente: resultado.obtenerCitaOficial(),
@@ -175,6 +253,7 @@ class ControladorTutor extends ChangeNotifier {
 					tiempoMs: resultado.tiempoInferenciaMs,
 					tipoIlustracion: resultado.tipoIlustracion,
 					notaIlustracion: resultado.notaIlustracion,
+					generadoPorIA: resultado.generadoPorIA,
 				),
 			);
 
@@ -209,13 +288,23 @@ class ControladorTutor extends ChangeNotifier {
 					_configuracionAula.velocidadLecturaVoz,
 				);
 			}
-		} catch (_) {
+		} catch (e) {
+			// Un fallo tecnico NO es lo mismo que "no esta en los libros": se le
+			// dice al nino que reintente en lugar de mandarlo al maestro sin motivo.
+			debugPrint('[ControladorTutor] Error al procesar la consulta: $e');
+			final MensajeChat? parcialPrevio = burbujaParcial;
+			if (parcialPrevio != null) {
+				_mensajes.remove(parcialPrevio);
+			}
 			_mensajes.add(
 				MensajeChat(
 					id: 'msg-${DateTime.now().microsecondsSinceEpoch}-err',
 					rol: RolMensaje.tutor,
-					texto: Reglas.mensajeConsultaAlMaestro,
-					esRemisionMaestro: true,
+					texto: e is TimeoutException
+						? 'Me tardé demasiado en pensar la respuesta. '
+							'¿Puedes intentar de nuevo con una pregunta más corta?'
+						: 'Uy, tuve un problema para responder. '
+							'¿Puedes intentar de nuevo en un momento?',
 				),
 			);
 		} finally {
@@ -225,25 +314,50 @@ class ControladorTutor extends ChangeNotifier {
 		}
 	}
 
-	/// RF-01 y RNF-08: Consulta por voz sin conexion.
+	/// RF-01 y RNF-08: Consulta por voz. Escucha por el microfono, muestra lo que
+	/// va entendiendo ([textoVozParcial]) y al terminar envia la pregunta.
+	/// [fraseSimulada] solo se usa en pruebas; en la app real siempre se escucha.
 	Future<void> preguntarPorVoz({String? fraseSimulada}) async {
-		if (_ocupado) {
+		if (_ocupado || _estadoMascota == EstadoMascota.escuchando) {
 			return;
 		}
+		_errorVoz = '';
+		_textoVozParcial = '';
+		// Callar al tutor antes de abrir el microfono, para que no se escuche a si mismo.
+		await _servicioAudio.detenerAudio();
 		_estadoMascota = EstadoMascota.escuchando;
 		notifyListeners();
 
-		final String reconocida = await _servicioAudio.vozATexto(
-			const <int>[],
-			fraseForzada: fraseSimulada,
-		);
-		_estadoMascota = EstadoMascota.reposo;
-		notifyListeners();
-
-		if (reconocida.isNotEmpty) {
-			await enviarPregunta(reconocida);
+		String reconocida;
+		try {
+			reconocida = fraseSimulada != null
+				? fraseSimulada.trim()
+				: await _servicioAudio.escucharPregunta(
+					alParcial: (String parcial) {
+						_textoVozParcial = parcial;
+						notifyListeners();
+					},
+				);
+		} catch (e) {
+			debugPrint('[ControladorTutor] Error de voz: $e');
+			reconocida = '';
 		}
+
+		_estadoMascota = EstadoMascota.reposo;
+		_textoVozParcial = '';
+		if (reconocida.isEmpty) {
+			_errorVoz = _servicioAudio.ultimoErrorVoz.isNotEmpty
+				? _servicioAudio.ultimoErrorVoz
+				: 'No te escuché. Toca el micrófono y habla de nuevo.';
+			notifyListeners();
+			return;
+		}
+		notifyListeners();
+		await enviarPregunta(reconocida);
 	}
+
+	/// El nino termino de hablar: procesa de inmediato lo que se alcanzo a entender.
+	Future<void> detenerEscucha() => _servicioAudio.detenerEscucha();
 
 	/// RF-04: Reproducir en voz alta cualquier respuesta mostrada.
 	Future<void> reproducirRespuestaVoz(String texto) async {

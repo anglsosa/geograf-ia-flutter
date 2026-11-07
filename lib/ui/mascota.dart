@@ -474,6 +474,143 @@ class _DiagramaGeografiaPainter extends CustomPainter {
 				..lineTo(0, h)
 				..close();
 			canvas.drawPath(rio, Paint()..color = const Color(0xFF2E86C1));
+		} else if (tipo == 'montana') {
+			canvas.drawCircle(
+				Offset(w * 0.8, h * 0.2),
+				8,
+				Paint()..color = const Color(0xFFF5B041),
+			);
+			final Path atras = Path()
+				..moveTo(w * 0.28, h * 0.9)
+				..lineTo(w * 0.62, h * 0.3)
+				..lineTo(w * 0.98, h * 0.9)
+				..close();
+			canvas.drawPath(atras, Paint()..color = const Color(0xFF7F8C8D));
+			final Path frente = Path()
+				..moveTo(w * 0.02, h * 0.9)
+				..lineTo(w * 0.36, h * 0.38)
+				..lineTo(w * 0.7, h * 0.9)
+				..close();
+			canvas.drawPath(frente, Paint()..color = const Color(0xFF5D6D7E));
+			final Path nieve = Path()
+				..moveTo(w * 0.36, h * 0.38)
+				..lineTo(w * 0.28, h * 0.52)
+				..lineTo(w * 0.36, h * 0.48)
+				..lineTo(w * 0.44, h * 0.52)
+				..close();
+			canvas.drawPath(nieve, Paint()..color = Colors.white);
+		} else if (tipo == 'brujula') {
+			final Offset centro = Offset(w * 0.5, h * 0.5);
+			final double r = h * 0.38;
+			canvas.drawCircle(centro, r, Paint()..color = Colors.white);
+			canvas.drawCircle(
+				centro,
+				r,
+				Paint()
+					..color = const Color(0xFF2F5D50)
+					..style = PaintingStyle.stroke
+					..strokeWidth = 3,
+			);
+			final Path norte = Path()
+				..moveTo(centro.dx, centro.dy - r * 0.8)
+				..lineTo(centro.dx - r * 0.22, centro.dy)
+				..lineTo(centro.dx + r * 0.22, centro.dy)
+				..close();
+			canvas.drawPath(norte, Paint()..color = const Color(0xFFC0392B));
+			final Path sur = Path()
+				..moveTo(centro.dx, centro.dy + r * 0.8)
+				..lineTo(centro.dx - r * 0.22, centro.dy)
+				..lineTo(centro.dx + r * 0.22, centro.dy)
+				..close();
+			canvas.drawPath(sur, Paint()..color = const Color(0xFF5D6D7E));
+		} else if (tipo == 'bosque') {
+			canvas.drawRect(
+				Rect.fromLTWH(0, h * 0.82, w, h * 0.18),
+				Paint()..color = const Color(0xFF8D6E63),
+			);
+			for (final double fx in <double>[0.2, 0.5, 0.8]) {
+				canvas.drawRect(
+					Rect.fromLTWH(w * fx - 3, h * 0.6, 6, h * 0.24),
+					Paint()..color = const Color(0xFF6D4C41),
+				);
+				final Path copa = Path()
+					..moveTo(w * fx, h * 0.16)
+					..lineTo(w * fx - w * 0.14, h * 0.66)
+					..lineTo(w * fx + w * 0.14, h * 0.66)
+					..close();
+				canvas.drawPath(copa, Paint()..color = const Color(0xFF2E8B57));
+			}
+		} else if (tipo == 'ciudad') {
+			canvas.drawRect(
+				Rect.fromLTWH(0, h * 0.86, w, h * 0.14),
+				Paint()..color = const Color(0xFF7F8C8D),
+			);
+			final List<List<double>> edificios = <List<double>>[
+				<double>[0.08, 0.45, 0.2],
+				<double>[0.32, 0.25, 0.22],
+				<double>[0.58, 0.5, 0.18],
+				<double>[0.78, 0.35, 0.18],
+			];
+			for (final List<double> e in edificios) {
+				canvas.drawRect(
+					Rect.fromLTWH(w * e[0], h * e[1], w * e[2], h * (0.86 - e[1])),
+					Paint()..color = const Color(0xFF5D6D7E),
+				);
+				canvas.drawRect(
+					Rect.fromLTWH(
+						w * e[0] + w * e[2] * 0.3,
+						h * e[1] + 6,
+						w * e[2] * 0.3,
+						6,
+					),
+					Paint()..color = const Color(0xFFF7DC6F),
+				);
+			}
+		} else if (tipo == 'oceano') {
+			canvas.drawRect(
+				Rect.fromLTWH(0, 0, w, h),
+				Paint()..color = const Color(0xFFD6EAF8),
+			);
+			for (int i = 0; i < 3; i++) {
+				final double y = h * (0.45 + i * 0.18);
+				final Path ola = Path()..moveTo(0, y);
+				for (int k = 0; k < 4; k++) {
+					ola.quadraticBezierTo(
+						w * (k * 0.25 + 0.125),
+						y - 8,
+						w * (k + 1) * 0.25,
+						y,
+					);
+				}
+				ola
+					..lineTo(w, h)
+					..lineTo(0, h)
+					..close();
+				canvas.drawPath(
+					ola,
+					Paint()
+						..color = Color.lerp(
+							const Color(0xFF5DADE2),
+							const Color(0xFF1B4F72),
+							i / 2,
+						)!,
+				);
+			}
+		} else if (tipo == 'sol') {
+			final Offset c = Offset(w * 0.5, h * 0.5);
+			final Paint rayo = Paint()
+				..color = const Color(0xFFF5B041)
+				..strokeWidth = 3
+				..strokeCap = StrokeCap.round;
+			for (int i = 0; i < 8; i++) {
+				final double ang = i * math.pi / 4;
+				canvas.drawLine(
+					Offset(c.dx + math.cos(ang) * h * 0.30, c.dy + math.sin(ang) * h * 0.30),
+					Offset(c.dx + math.cos(ang) * h * 0.44, c.dy + math.sin(ang) * h * 0.44),
+					rayo,
+				);
+			}
+			canvas.drawCircle(c, h * 0.24, Paint()..color = const Color(0xFFF39C12));
 		} else {
 			// Planeta Tierra / Geografia general
 			canvas.drawCircle(

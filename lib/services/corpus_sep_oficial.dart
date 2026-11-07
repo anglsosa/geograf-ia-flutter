@@ -1,4 +1,8 @@
 import '../models/modelos.dart';
+import 'corpus_naturaleza.dart';
+import 'corpus_relieve_clima.dart';
+import 'corpus_sociedad.dart';
+import 'corpus_tierra.dart';
 
 /// Base de conocimiento preinstalada con fragmentos reales de los libros de
 /// texto de Geografia de la SEP (4to, 5to y 6to de primaria).
@@ -7,9 +11,19 @@ import '../models/modelos.dart';
 class CorpusSepOficial {
 	CorpusSepOficial._();
 
-	static const String versionInicial = 'SEP-2026.1 (Ciclo Escolar Oficial)';
+	static const String versionInicial = 'SEP-2026.1 (Corpus ampliado · 70 temas)';
 
-	static const List<FragmentoSEP> fragmentosIniciales = <FragmentoSEP>[
+	/// Corpus completo: los 10 fragmentos originales mas el corpus ampliado del
+	/// temario de Geografia de primaria (4o a 6o), organizado en cuatro bloques.
+	static final List<FragmentoSEP> fragmentosIniciales = <FragmentoSEP>[
+		..._originales,
+		...CorpusTierra.fragmentos,
+		...CorpusRelieveClima.fragmentos,
+		...CorpusNaturaleza.fragmentos,
+		...CorpusSociedad.fragmentos,
+	];
+
+	static const List<FragmentoSEP> _originales = <FragmentoSEP>[
 		FragmentoSEP(
 			idFragmento: 'SEP-GEO-01',
 			gradoNivel: 4,
@@ -179,7 +193,7 @@ class CorpusSepOficial {
 			textoContenido:
 				'continentes del mundo cuántos continentes hay mapas océanos américa '
 				'europa asia áfrica oceanía antártida coordenadas escala rosa de los vientos '
-				'paralelos meridianos latitud longitud ecuador.',
+				'paralelos meridianos latitud longitud ecuador cuales son los continentes continentes del mundo cuantos continentes hay.',
 			explicacion4to:
 				'Las grandes extensiones de tierra del planeta se llaman continentes y '
 				'son seis: América (donde vivimos), Europa, Asia, África, Oceanía y la '

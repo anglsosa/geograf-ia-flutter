@@ -43,7 +43,26 @@ class FragmentoSEP {
 
 	/// Metodo oficial del UML: +obtenerMetadatos() : String
 	String obtenerMetadatos() {
+		if (numeroPagina <= 0) {
+			return '$nombreLibro · $bloqueTema';
+		}
 		return '$nombreLibro · $bloqueTema · Pág. $numeroPagina';
+	}
+
+	/// Explicacion adaptada al grado escolar (RF-08). Si falta la del grado
+	/// pedido usa la del grado inmediato inferior y, en ultimo caso, el texto base.
+	String explicacionParaGrado(int grado) {
+		final List<String> candidatas = switch (grado) {
+			6 => <String>[explicacion6to, explicacion5to, explicacion4to],
+			5 => <String>[explicacion5to, explicacion4to],
+			_ => <String>[explicacion4to],
+		};
+		for (final String texto in candidatas) {
+			if (texto.trim().isNotEmpty) {
+				return texto.trim();
+			}
+		}
+		return textoContenido.trim();
 	}
 
 	factory FragmentoSEP.desdeJson(Map<String, dynamic> json) {
@@ -85,10 +104,15 @@ class ResultadoConsulta {
 		this.tipoIlustracion = '',
 		this.notaIlustracion = '',
 		this.fragmentoAsociado,
+		this.generadoPorIA = false,
 	});
 
 	final String textoRespuesta;
 	final bool fuenteEncontrada;
+
+	/// true si el texto lo redacto el LLM local; false si es la explicacion
+	/// del libro SEP usada directamente (modo basico, sin modelo cargado).
+	final bool generadoPorIA;
 	final String libroOrigen;
 	final String unidadTematica;
 	final int numeroPagina;
@@ -220,11 +244,19 @@ class MensajeChat {
 		this.opcionesReto = const <String>[],
 		this.indiceCorrectoReto = 0,
 		this.opcionSeleccionadaReto,
+		this.generadoPorIA = false,
+		this.enProgreso = false,
 	});
 
 	final String id;
 	final RolMensaje rol;
-	final String texto;
+
+	/// Mutable: mientras el LLM genera, el texto crece token a token (streaming).
+	String texto;
+
+	/// true mientras la respuesta aun se esta generando.
+	bool enProgreso;
+	final bool generadoPorIA;
 	final String citaFuente;
 	final bool esRemisionMaestro;
 	final int tiempoMs;
