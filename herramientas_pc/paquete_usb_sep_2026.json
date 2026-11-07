@@ -1,0 +1,25 @@
+{
+	"version": "SEP-2026.2-USB",
+	"fragmentos": [
+		{
+			"idFragmento": "SEP-GEO-09-USB",
+			"gradoNivel": 6,
+			"nombreLibro": "Libro SEP Geografía 6° (Actualización USB CTE)",
+			"bloqueTema": "Bloque V · Cuidado del medio ambiente y energías limpias",
+			"numeroPagina": 158,
+			"textoContenido": "medio ambiente contaminacion calentamiento global reciclaje energia solar eolica cuidar el planeta basura agua arboles.",
+			"explicacion4to": "Para cuidar nuestro planeta debemos ahorrar agua, apagar las luces que no usamos, separar la basura para reciclar y plantar árboles. También existen energías limpias como el Sol y el viento.",
+			"explicacion5to": "La protección ambiental requiere reducir emisiones, aplicar las tres erres (reducir, reutilizar y reciclar) y aprovechar fuentes de energía renovable como la solar y la eólica.",
+			"explicacion6to": "El desarrollo sustentable y la mitigación del cambio climático demandan transitar hacia energías limpias, conservar los bosques y gestionar responsablemente el agua y los residuos.",
+			"tipoIlustracion": "climas",
+			"notaIlustracion": "El Sol y el viento producen energía limpia sin contaminar.",
+			"preguntaComprobacion": "¿Cuál de estas es una fuente de energía limpia?",
+			"opcionesComprobacion": [
+				"La energía del Sol",
+				"Quemar llantas",
+				"Tirar basura al río"
+			],
+			"indiceRespuestaCorrecta": 0
+		}
+	]
+}

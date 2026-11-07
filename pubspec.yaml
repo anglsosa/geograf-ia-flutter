@@ -1,0 +1,21 @@
+# YAML requires spaces per spec; all Dart/Python code uses tabs (\t).
+name: geograf_ia
+description: Geograf-IA - Tutor Local Inteligente 100% Offline con RAG sobre libros de la SEP para educacion basica rural.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.2.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  provider: ^6.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
