@@ -1,0 +1,11 @@
+{
+	"name": "geograf_ia",
+	"short_name": "geograf_ia",
+	"start_url": ".",
+	"display": "standalone",
+	"background_color": "#F3EFEA",
+	"theme_color": "#1E4D3B",
+	"description": "Geograf-IA - Tutor Local Inteligente SEP Offline",
+	"orientation": "portrait-primary",
+	"prefer_related_applications": false
+}
