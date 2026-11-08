@@ -2,6 +2,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:geograf_ia/controllers/controlador_configuracion.dart';
 import 'package:geograf_ia/controllers/controlador_tutor.dart';
 import 'package:geograf_ia/core/reglas.dart';
+import 'package:geograf_ia/data/esquema_sql.dart';
+import 'package:geograf_ia/data/persistencia.dart';
+import 'package:geograf_ia/models/entidades_db.dart';
 import 'package:geograf_ia/models/modelos.dart';
 import 'package:geograf_ia/services/servicios.dart';
 
@@ -152,6 +155,78 @@ void main() {
 			expect(c.mensajes.last.enProgreso, isFalse);
 			expect(c.mensajes.last.citaFuente, isNotEmpty);
 			expect(c.ocupado, isFalse);
+		});
+	});
+
+	group('Base de datos local (modo seguro y reglas de negocio)', () {
+		test('El esquema define las 11 tablas y ninguna guarda nombres de personas', () {
+			expect(EsquemaSql.tablas.length, 11);
+			final String todo = EsquemaSql.tablas.join('\n').toLowerCase();
+			expect(todo.contains('nombre_alumno'), isFalse);
+			expect(todo.contains('apellido'), isFalse);
+			expect(todo.contains('curp'), isFalse);
+		});
+
+		test('Sin base de datos los repositorios devuelven vacio y no fallan', () async {
+			final Persistencia p = Persistencia.sinBaseDatos();
+			expect(p.disponible, isFalse);
+			expect(await p.aula.listarGrupos(), isEmpty);
+			expect(await p.aula.crearGrupo('5° A'), isNull);
+			expect(await p.aula.agregarAlumno(1), isNull);
+			expect(await p.aula.cargarConfiguracion(1), isNull);
+			expect(await p.conversaciones.recientes(1), isEmpty);
+			expect(await p.conversaciones.consultasDe(1), isEmpty);
+			expect(await p.corpus.cargarCorpusActivo(), isNull);
+			expect(await p.corpus.historialActualizaciones(), isEmpty);
+			final ResumenEstadisticas r = await p.conversaciones.estadisticas(1);
+			expect(r.consultas, 0);
+			expect(r.porcentajeResueltas, isNull);
+		});
+
+		test('El controlador sigue respondiendo con una persistencia vacia', () async {
+			final ControladorTutor c = ControladorTutor(
+				persistencia: Persistencia.sinBaseDatos(),
+			);
+			c.configuracion.vozAutomatica = false;
+			await c.iniciar();
+			expect(c.hayBaseDatos, isFalse);
+			await c.enviarPregunta('¿Por qué llueve?');
+			expect(c.mensajes.length, 2);
+			expect(c.mensajes.last.idConsulta, isNull);
+			expect(c.conversacionesRecientes, isEmpty);
+		});
+
+		test('Los indicadores calculan bien los porcentajes de las metas', () {
+			const ResumenEstadisticas r = ResumenEstadisticas(
+				consultas: 10,
+				remitidas: 2,
+				valoradas: 5,
+				claras: 4,
+				retosRespondidos: 4,
+				retosAcertados: 3,
+			);
+			expect(r.porcentajeRemitidas, 20.0);
+			expect(r.porcentajeResueltas, 80.0);
+			expect(r.porcentajeAciertosRetos, 75.0);
+			expect(const ResumenEstadisticas().porcentajeResueltas, isNull);
+		});
+
+		test('Aplicar una configuracion guardada respeta los rangos permitidos', () {
+			final ConfiguracionAula cfg = ConfiguracionAula();
+			cfg.aplicarDesde(
+				ConfiguracionAula(
+					gradoActual: 6,
+					velocidadLecturaVoz: 9.0,
+					tamanoFuente: 99,
+					altoContraste: true,
+					vozAutomatica: false,
+				),
+			);
+			expect(cfg.gradoActual, 6);
+			expect(cfg.velocidadLecturaVoz, 1.4);
+			expect(cfg.tamanoFuente, 22);
+			expect(cfg.altoContraste, isTrue);
+			expect(cfg.vozAutomatica, isFalse);
 		});
 	});
 }

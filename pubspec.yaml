@@ -23,6 +23,10 @@ dependencies:
   # el paquete de espanol de Voz de Google). Version fija: 7.4.0 funciona con
   # Flutter 3.38-3.47; las 7.5+ exigen Dart 3.12.
   speech_to_text: 7.4.0
+  # Base de datos SQLite local (offline) para grupos, alumnos anonimos,
+  # conversaciones, consultas, corpus y actualizaciones USB. 2.4.2+1 es la ultima
+  # version compatible con Dart 3.10-3.11 (las posteriores exigen Dart 3.12).
+  sqflite: 2.4.2+1
   # Carpeta privada y persistente de la app donde vive el modelo (~1.1 GB).
   path_provider: ^2.1.5
 

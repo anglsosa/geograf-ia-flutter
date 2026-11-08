@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import '../controllers/controlador_tutor.dart';
 import '../core/reglas.dart';
 import '../core/tema.dart';
+import '../models/entidades_db.dart';
 import '../models/modelos.dart';
 import 'mascota.dart';
 import 'pantalla_configuracion.dart';
+import 'pantalla_grupo.dart';
 
 /// Menu lateral (Sidebar) armonizado con la paleta suave crema/pastel de la app.
 /// Muestra Temas, consultas Recientes, el boton "Nueva conversacion" (RF-09)
@@ -40,6 +42,14 @@ class MenuLateralGeografIA extends StatelessWidget {
 	Widget build(BuildContext context) {
 		final double anchoPantalla = MediaQuery.sizeOf(context).width;
 		final double anchoDrawer = math.min(300.0, anchoPantalla * 0.85);
+		// Con base de datos se listan las conversaciones guardadas; sin ella, las
+		// ultimas preguntas de esta sesion.
+		final bool usarHistorial = controlador.hayBaseDatos;
+		final List<ConversacionResumen> historial =
+			controlador.conversacionesRecientes;
+		final int totalRecientes = usarHistorial
+			? historial.length
+			: controlador.consultasRecientes.length;
 
 		return Drawer(
 			backgroundColor: Paleta.cremaFondo,
@@ -202,8 +212,8 @@ class MenuLateralGeografIA extends StatelessWidget {
 								),
 							),
 							const SizedBox(height: 10),
-							const Text(
-								'Consultas recientes',
+							Text(
+									usarHistorial ? 'Conversaciones recientes' : 'Consultas recientes',
 								style: TextStyle(
 									color: Paleta.textoSecundario,
 									fontSize: 12.5,
@@ -215,12 +225,12 @@ class MenuLateralGeografIA extends StatelessWidget {
 							Expanded(
 								child: ListView.builder(
 									padding: EdgeInsets.zero,
-									itemCount:
-										controlador.consultasRecientes.length,
-									itemBuilder:
-										(BuildContext context, int i) {
-											final String pregunta = controlador
-												.consultasRecientes[i];
+									itemCount: totalRecientes,
+										itemBuilder:
+											(BuildContext context, int i) {
+												final String pregunta = usarHistorial
+													? historial[i].titulo
+													: controlador.consultasRecientes[i];
 											return Padding(
 												padding: const EdgeInsets.only(
 													bottom: 6,
@@ -231,12 +241,16 @@ class MenuLateralGeografIA extends StatelessWidget {
 															12,
 														),
 													onTap: () {
-														Navigator.of(context)
-															.pop();
-														controlador
-															.enviarPregunta(
-																pregunta,
-															);
+														Navigator.of(context).pop();
+															if (usarHistorial) {
+																controlador.abrirConversacion(
+																	historial[i].id,
+																);
+															} else {
+																controlador.enviarPregunta(
+																	pregunta,
+																);
+															}
 													},
 													child: Container(
 														padding:
@@ -262,9 +276,10 @@ class MenuLateralGeografIA extends StatelessWidget {
 															),
 														child: Row(
 															children: <Widget>[
-																const Icon(
-																	Icons
-																		.history_rounded,
+																Icon(
+																		usarHistorial
+																			? Icons.forum_outlined
+																			: Icons.history_rounded,
 																	size: 15,
 																	color: Paleta
 																		.textoSecundario,
@@ -300,7 +315,55 @@ class MenuLateralGeografIA extends StatelessWidget {
 								),
 							),
 							const SizedBox(height: 8),
-							// Boton Configurar Aula / USB
+								// Grupo, alumnos y avance (base de datos local)
+								if (controlador.hayBaseDatos)
+									Padding(
+										padding: const EdgeInsets.only(bottom: 6),
+										child: Text(
+											'Grupo: ${controlador.grupoActivo?.nombre ?? '—'} · '
+											'Alumno: ${controlador.alumnoActivo?.codigo ?? 'Invitado'}',
+											maxLines: 1,
+											overflow: TextOverflow.ellipsis,
+											style: const TextStyle(
+												color: Paleta.textoSecundario,
+												fontSize: 12,
+												fontWeight: FontWeight.w700,
+											),
+										),
+									),
+								SizedBox(
+									width: double.infinity,
+									child: OutlinedButton.icon(
+										style: OutlinedButton.styleFrom(
+											backgroundColor: Colors.white,
+											foregroundColor: Paleta.textoPrimario,
+											side: const BorderSide(color: Paleta.bordeSuave),
+											padding: const EdgeInsets.symmetric(vertical: 10),
+											shape: RoundedRectangleBorder(
+												borderRadius: BorderRadius.circular(20),
+											),
+										),
+										onPressed: () {
+											Navigator.of(context).pop();
+											Navigator.of(context).push(
+												MaterialPageRoute<void>(
+													builder: (_) =>
+														PantallaGrupo(controlador: controlador),
+												),
+											);
+										},
+										icon: const Icon(Icons.groups_rounded, size: 18),
+										label: const Text(
+											'Grupo y avance',
+											style: TextStyle(
+												fontSize: 13.5,
+												fontWeight: FontWeight.w700,
+											),
+										),
+									),
+								),
+								const SizedBox(height: 8),
+								// Boton Configurar Aula / USB
 							SizedBox(
 								width: double.infinity,
 								child: OutlinedButton.icon(

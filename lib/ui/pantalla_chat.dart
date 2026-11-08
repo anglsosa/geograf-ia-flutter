@@ -178,6 +178,45 @@ class _PantallaChatState extends State<PantallaChat> {
 		);
 	}
 
+	/// Botones "me quedo clara" / "no entendi" de una respuesta ya guardada.
+	List<Widget> _botonesValoracion(ControladorTutor c, MensajeChat m) {
+		Widget boton(bool valor, IconData icono, String ayuda) {
+			final bool elegido = m.quedoClara == valor;
+			return Tooltip(
+				message: ayuda,
+				child: InkWell(
+					borderRadius: BorderRadius.circular(10),
+					onTap: () => c.valorarRespuesta(m.id, valor),
+					child: Padding(
+						padding: const EdgeInsets.all(4),
+						child: Icon(
+							icono,
+							size: 18,
+							color: elegido ? Paleta.verdeBosque : Paleta.textoSecundario,
+						),
+					),
+				),
+			);
+		}
+
+		return <Widget>[
+			boton(
+				true,
+				m.quedoClara == true
+					? Icons.thumb_up_alt_rounded
+					: Icons.thumb_up_off_alt_rounded,
+				'Me quedó clara',
+			),
+			boton(
+				false,
+				m.quedoClara == false
+					? Icons.thumb_down_alt_rounded
+					: Icons.thumb_down_off_alt_rounded,
+				'No entendí',
+			),
+		];
+	}
+
 	/// Muestra en vivo lo que el microfono va entendiendo.
 	Widget _construirIndicadorEscucha(ControladorTutor c) {
 		final String parcial = c.textoVozParcial;
@@ -765,6 +804,8 @@ class _PantallaChatState extends State<PantallaChat> {
 															.textoSecundario,
 													),
 												),
+											// El nino indica si le quedo clara la respuesta (se guarda en la base de datos)
+											if (m.idConsulta != null) ..._botonesValoracion(c, m),
 											InkWell(
 												borderRadius:
 													BorderRadius.circular(10),

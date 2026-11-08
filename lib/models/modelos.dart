@@ -179,6 +179,16 @@ class ConfiguracionAula {
 		_tamanoFuente = tamano.clamp(14, 22);
 	}
 
+	/// Copia los valores de otra configuracion (por ejemplo la guardada en la base
+	/// de datos) sobre esta, respetando los rangos permitidos.
+	void aplicarDesde(ConfiguracionAula otra) {
+		fijarGrado(otra.gradoActual);
+		fijarVelocidadLectura(otra.velocidadLecturaVoz);
+		fijarTamanoFuente(otra.tamanoFuente);
+		altoContraste = otra.altoContraste;
+		vozAutomatica = otra.vozAutomatica;
+	}
+
 	ConfiguracionAula copiarCon({
 		int? gradoActual,
 		double? velocidadLecturaVoz,
@@ -246,6 +256,9 @@ class MensajeChat {
 		this.opcionSeleccionadaReto,
 		this.generadoPorIA = false,
 		this.enProgreso = false,
+		this.idConsulta,
+		this.quedoClara,
+		this.claveFragmento = '',
 	});
 
 	final String id;
@@ -257,6 +270,15 @@ class MensajeChat {
 	/// true mientras la respuesta aun se esta generando.
 	bool enProgreso;
 	final bool generadoPorIA;
+
+	/// Id de la consulta guardada en la base de datos (null si no se guardo).
+	int? idConsulta;
+
+	/// Si al nino le quedo clara la respuesta: null = aun no contesta.
+	bool? quedoClara;
+
+	/// Clave del tema SEP de origen (sirve para guardar la respuesta a un reto).
+	String claveFragmento;
 	final String citaFuente;
 	final bool esRemisionMaestro;
 	final int tiempoMs;

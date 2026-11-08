@@ -43,6 +43,7 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 		_controladorConfig = ControladorConfiguracion(
 			gestorUSB: _gestorUSB,
 			configuracionAula: widget.controlador.configuracion,
+			persistencia: widget.controlador.persistencia,
 		);
 	}
 

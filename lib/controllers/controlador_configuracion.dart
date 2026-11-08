@@ -1,4 +1,5 @@
 import '../core/reglas.dart';
+import '../data/persistencia.dart';
 import '../models/modelos.dart';
 import '../services/servicios.dart';
 
@@ -7,11 +8,16 @@ class ControladorConfiguracion {
 	ControladorConfiguracion({
 		required GestorActualizacionUSB gestorUSB,
 		required ConfiguracionAula configuracionAula,
+		Persistencia? persistencia,
 	})  : _gestorUSB = gestorUSB,
-		_configuracionAula = configuracionAula;
+		_configuracionAula = configuracionAula,
+		_persistencia = persistencia;
 
 	final GestorActualizacionUSB _gestorUSB;
 	final ConfiguracionAula _configuracionAula;
+
+	/// Base de datos donde se guardan la version nueva y el historial (RF-05, RF-11).
+	final Persistencia? _persistencia;
 
 	GestorActualizacionUSB get gestorUSB => _gestorUSB;
 	ConfiguracionAula get configuracionAula => _configuracionAula;
@@ -54,6 +60,11 @@ class ControladorConfiguracion {
 		if (!_gestorUSB.detectarUnidadUSB() ||
 			!_gestorUSB.verificarPaqueteActualizacion(rutaPaquete)) {
 			sw.stop();
+			await _registrarFallo(
+				rutaPaquete,
+				'No se detectó un paquete oficial SEP válido en la memoria USB.',
+				sw,
+			);
 			return ReporteActualizacion(
 				exitoso: false,
 				mensaje: 'No se detectó un paquete oficial SEP válido en la memoria USB.',
@@ -68,10 +79,15 @@ class ControladorConfiguracion {
 			rutaPaquete,
 			jsonContenido: jsonContenido,
 		);
-		sw.stop();
 
 		if (!exito) {
 			_gestorUSB.revertirCambios();
+			sw.stop();
+			await _registrarFallo(
+				rutaPaquete,
+				'Error al desempaquetar la base vectorial. Se restauró la versión anterior.',
+				sw,
+			);
 			return ReporteActualizacion(
 				exitoso: false,
 				mensaje: 'Error al desempaquetar la base vectorial. Se restauró la versión anterior.',
@@ -81,6 +97,38 @@ class ControladorConfiguracion {
 				duracionSegundos: sw.elapsedMilliseconds / 1000.0,
 			);
 		}
+
+		// Guardado en la base de datos: todo o nada. Si SQLite falla, se deshace y se
+		// restaura la version anterior en memoria para no quedar a medias.
+		final Persistencia? p = _persistencia;
+		if (p != null && p.disponible) {
+			try {
+				await p.corpus.registrarActualizacionUsb(
+					rutaPaquete: rutaPaquete,
+					versionNueva: almacen.versionActual,
+					fragmentos: almacen.fragmentos,
+					duracionSeg: sw.elapsedMilliseconds / 1000.0,
+				);
+			} catch (e) {
+				_gestorUSB.revertirCambios();
+				sw.stop();
+				await _registrarFallo(
+					rutaPaquete,
+					'No se pudo guardar la actualización en la base de datos. Se restauró la versión anterior.',
+					sw,
+				);
+				return ReporteActualizacion(
+					exitoso: false,
+					mensaje:
+						'No se pudo guardar la actualización en la base de datos. Se restauró la versión anterior.',
+					versionAnterior: versionPrevia,
+					versionNueva: almacen.versionActual,
+					fragmentosCargados: almacen.totalFragmentos,
+					duracionSegundos: sw.elapsedMilliseconds / 1000.0,
+				);
+			}
+		}
+		sw.stop();
 
 		return ReporteActualizacion(
 			exitoso: true,
@@ -92,5 +140,23 @@ class ControladorConfiguracion {
 			duracionSegundos: sw.elapsedMilliseconds / 1000.0,
 		);
 	}
-}
 
+	/// Deja constancia en el historial de un intento de actualizacion que fallo.
+	Future<void> _registrarFallo(
+		String rutaPaquete,
+		String mensaje,
+		Stopwatch cronometro,
+	) async {
+		final Persistencia? p = _persistencia;
+		if (p == null || !p.disponible) {
+			return;
+		}
+		try {
+			await p.corpus.registrarActualizacionFallida(
+				rutaPaquete: rutaPaquete,
+				mensaje: mensaje,
+				duracionSeg: cronometro.elapsedMilliseconds / 1000.0,
+			);
+		} catch (_) {}
+	}
+}

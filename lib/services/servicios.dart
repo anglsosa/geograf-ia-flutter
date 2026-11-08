@@ -131,6 +131,19 @@ class AlmacenVectoresChroma {
 		'tiemblan': 'sismo',
 	};
 
+	/// Copia de los fragmentos que hay cargados ahora en el indice.
+	List<FragmentoSEP> get fragmentos =>
+		List<FragmentoSEP>.unmodifiable(_fragmentos);
+
+	/// Reemplaza todo el corpus (por ejemplo con el leido de la base de datos).
+	void reemplazarCorpus(List<FragmentoSEP> lista, String version) {
+		if (lista.isEmpty) {
+			return;
+		}
+		_cargarCorpus(lista);
+		_versionActual = version;
+	}
+
 	String get rutaIndice => _rutaIndice;
 	int get dimensionEmbedding => _dimensionEmbedding;
 	String get versionActual => _versionActual;
