@@ -8,6 +8,7 @@ import '../data/repositorio_corpus.dart';
 import '../models/entidades_db.dart';
 import '../models/modelos.dart';
 import '../services/corpus_sep_oficial.dart';
+import '../services/servicio_conversacion.dart';
 import '../services/servicios.dart';
 
 /// Controlador principal de la sesion tutor-alumno (9_UML.pdf).
@@ -29,6 +30,7 @@ class ControladorTutor extends ChangeNotifier {
 			GestorActualizacionUSB(
 				almacenVectores: _pipelineRAG.baseVectores,
 			);
+		_servicioConversacion = ServicioConversacion(_pipelineRAG.baseVectores);
 		// Cada cambio del motor de IA (descarga, carga, listo, error) refresca la UI.
 		_pipelineRAG.motorLLM.addListener(notifyListeners);
 	}
@@ -174,6 +176,7 @@ class ControladorTutor extends ChangeNotifier {
 	final ServicioAudio _servicioAudio;
 	final ConfiguracionAula _configuracionAula;
 	late final GestorActualizacionUSB _gestorUSB;
+	late final ServicioConversacion _servicioConversacion;
 
 	EstadoMascota _estadoMascota = EstadoMascota.reposo;
 	final List<MensajeChat> _mensajes = <MensajeChat>[];
@@ -284,6 +287,7 @@ class ControladorTutor extends ChangeNotifier {
 		_servicioAudio.detenerAudio();
 		_cerrarConversacionActual();
 		_mensajes.clear();
+		_servicioConversacion.reiniciar();
 		_estadoMascota = EstadoMascota.reposo;
 		_ocupado = false;
 		notifyListeners();
@@ -318,13 +322,22 @@ class ControladorTutor extends ChangeNotifier {
 				fuenteEncontrada: false,
 			);
 		}
-		return _pipelineRAG
+		final int grado = _configuracionAula.obtenerGrado();
+		final ResultadoConsulta? conversacional =
+			_servicioConversacion.responderSiAplica(pregunta, grado);
+		if (conversacional != null) {
+			return conversacional;
+		}
+		final String consultaRAG = _servicioConversacion.prepararConsulta(pregunta);
+		final ResultadoConsulta resultado = await _pipelineRAG
 			.generarRespuestaFundamentada(
-				pregunta,
-				_configuracionAula.obtenerGrado(),
+				consultaRAG,
+				grado,
 				alTextoParcial: alTextoParcial,
 			)
 			.timeout(Reglas.tiempoMaximoRespuesta);
+		_servicioConversacion.recordarResultado(pregunta, resultado);
+		return resultado;
 	}
 
 	/// Envia una pregunta desde la UI, actualiza burbujas, mascota y TTS.
@@ -401,6 +414,7 @@ class ControladorTutor extends ChangeNotifier {
 
 			// Si hubo fuente SEP valida, verificar si toca lanzar reto pedagogico
 			if (resultado.fuenteEncontrada &&
+				!resultado.esConversacional &&
 				resultado.fragmentoAsociado != null) {
 				_consultasExitosasEnSesion++;
 				final FragmentoSEP frag = resultado.fragmentoAsociado!;
@@ -638,6 +652,7 @@ class ControladorTutor extends ChangeNotifier {
 				_cerrarConversacionActual();
 			}
 			_mensajes.clear();
+			_servicioConversacion.reiniciar();
 			for (final ConsultaGuardada c in consultas) {
 				_mensajes.add(
 					MensajeChat(
@@ -663,6 +678,15 @@ class ControladorTutor extends ChangeNotifier {
 					),
 				);
 			}
+			for (final ConsultaGuardada c in consultas.reversed) {
+				if (c.claveFragmento.isNotEmpty) {
+					_servicioConversacion.restaurarTema(
+						c.claveFragmento,
+						ultimaPregunta: c.pregunta,
+					);
+					break;
+				}
+			}
 			_idConversacion = idConversacion;
 			_estadoMascota = EstadoMascota.reposo;
 			notifyListeners();
@@ -684,6 +708,7 @@ class ControladorTutor extends ChangeNotifier {
 			_alumno = null;
 			_cerrarConversacionActual();
 			_mensajes.clear();
+			_servicioConversacion.reiniciar();
 			await _aplicarConfiguracionDelGrupo();
 			await _recargarGrupos();
 			await _recargarAlumnos();
@@ -717,6 +742,7 @@ class ControladorTutor extends ChangeNotifier {
 		_alumno = alumno;
 		_cerrarConversacionActual();
 		_mensajes.clear();
+		_servicioConversacion.reiniciar();
 		notifyListeners();
 	}
 
@@ -778,4 +804,3 @@ class ControladorTutor extends ChangeNotifier {
 		}
 	}
 }
-

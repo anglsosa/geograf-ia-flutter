@@ -105,6 +105,7 @@ class ResultadoConsulta {
 		this.notaIlustracion = '',
 		this.fragmentoAsociado,
 		this.generadoPorIA = false,
+		this.esConversacional = false,
 	});
 
 	final String textoRespuesta;
@@ -113,6 +114,10 @@ class ResultadoConsulta {
 	/// true si el texto lo redacto el LLM local; false si es la explicacion
 	/// del libro SEP usada directamente (modo basico, sin modelo cargado).
 	final bool generadoPorIA;
+
+	/// Respuesta de navegación, cortesía o aclaración. No representa una
+	/// remisión al docente aunque no tenga una fuente académica asociada.
+	final bool esConversacional;
 	final String libroOrigen;
 	final String unidadTematica;
 	final int numeroPagina;
@@ -135,7 +140,7 @@ class ResultadoConsulta {
 
 	/// Metodo oficial del UML: +esRemisionAlMaestro() : Boolean (RF-03)
 	bool esRemisionAlMaestro() {
-		return !fuenteEncontrada;
+		return !fuenteEncontrada && !esConversacional;
 	}
 }
 
@@ -291,4 +296,3 @@ class MensajeChat {
 	final int indiceCorrectoReto;
 	int? opcionSeleccionadaReto;
 }
-

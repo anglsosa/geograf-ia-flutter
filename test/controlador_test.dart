@@ -42,6 +42,47 @@ void main() {
 		expect(r.textoRespuesta, Reglas.mensajeConsultaAlMaestro);
 	});
 
+	group('Conversacion contextual', () {
+		test('lista temas disponibles sin remitir al maestro', () async {
+			final ControladorTutor c = ControladorTutor();
+			final ResultadoConsulta r =
+				await c.procesarConsulta('Hola, ¿qué temas tenemos disponibles?');
+			expect(r.esConversacional, isTrue);
+			expect(r.esRemisionAlMaestro(), isFalse);
+			expect(r.textoRespuesta, contains('Relieves y volcanes'));
+		});
+
+		test('agradecimiento no recupera el tema de lluvia', () async {
+			final ControladorTutor c = ControladorTutor();
+			final ResultadoConsulta r = await c.procesarConsulta('gracias');
+			expect(r.esConversacional, isTrue);
+			expect(r.fragmentoAsociado, isNull);
+			expect(r.textoRespuesta, isNot(contains('lluvia')));
+		});
+
+		test('seguimiento conserva el ultimo tema respaldado', () async {
+			final ControladorTutor c = ControladorTutor();
+			final ResultadoConsulta inicial =
+				await c.procesarConsulta('¿Cómo se forma un volcán?');
+			final ResultadoConsulta seguimiento =
+				await c.procesarConsulta('¿Y por qué pasa eso?');
+			expect(inicial.fragmentoAsociado?.idFragmento, 'SEP-GEO-01');
+			expect(seguimiento.fuenteEncontrada, isTrue);
+			expect(seguimiento.fragmentoAsociado?.idFragmento, 'SEP-GEO-01');
+		});
+
+		test('explicacion mas facil reutiliza fuente y evita remision', () async {
+			final ControladorTutor c = ControladorTutor();
+			c.establecerGradoEscolar(6);
+			await c.procesarConsulta('¿Cómo se forma un volcán?');
+			final ResultadoConsulta r =
+				await c.procesarConsulta('Explícamelo más fácil');
+			expect(r.esConversacional, isTrue);
+			expect(r.fuenteEncontrada, isTrue);
+			expect(r.obtenerCitaOficial(), isNotEmpty);
+		});
+	});
+
 	test('RF-05 y RF-11: Actualizacion USB agrega contenidos y confirma exito', () async {
 		final ControladorTutor c = ControladorTutor();
 		final ControladorConfiguracion cfg = ControladorConfiguracion(

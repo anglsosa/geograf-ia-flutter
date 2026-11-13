@@ -75,8 +75,9 @@ class Reglas {
 
 	// RF-03: Mensaje normativo cuando la consulta no existe en los libros de la SEP.
 	static const String mensajeConsultaAlMaestro =
-		'No encontré suficiente información sobre eso en tus libros de texto de la SEP. '
-		'¡Te recomiendo preguntarle a tu maestra o maestro en el salón!';
+		'No encontré suficiente información sobre eso en el material disponible. '
+		'Puedes darme más detalles, elegir otro tema de Geografía o preguntarle a tu '
+		'maestra o maestro.';
 
 	// Categorias del menu lateral (6_DisenoUI.pdf - Pantalla de side bar).
 	static const List<Map<String, String>> categoriasTemas = <Map<String, String>>[
