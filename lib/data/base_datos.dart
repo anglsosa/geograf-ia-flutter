@@ -36,6 +36,7 @@ class BaseDatos {
 					await d.execute('PRAGMA foreign_keys = ON');
 				},
 				onCreate: _crearEsquema,
+				onUpgrade: _migrarEsquema,
 			);
 			return BaseDatos._(db);
 		} catch (e) {
@@ -44,7 +45,21 @@ class BaseDatos {
 		}
 	}
 
-	/// Crea las 11 tablas, los indices y el grupo inicial con su configuracion.
+	/// Actualiza una base de una version anterior sin borrar datos (por ejemplo,
+	/// agrega `credencial_docente` a las bases creadas con la version 1).
+	static Future<void> _migrarEsquema(
+		Database db,
+		int versionAnterior,
+		int versionNueva,
+	) async {
+		final Batch lote = db.batch();
+		for (final String sentencia in EsquemaSql.migraciones(versionAnterior)) {
+			lote.execute(sentencia);
+		}
+		await lote.commit(noResult: true);
+	}
+
+	/// Crea las 12 tablas, los indices y el grupo inicial con su configuracion.
 	static Future<void> _crearEsquema(Database db, int version) async {
 		final Batch lote = db.batch();
 		for (final String tabla in EsquemaSql.tablas) {

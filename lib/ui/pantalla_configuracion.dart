@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../controllers/controlador_configuracion.dart';
@@ -5,12 +7,17 @@ import '../controllers/controlador_tutor.dart';
 import '../core/reglas.dart';
 import '../core/tema.dart';
 import '../models/modelos.dart';
+import '../services/servicio_autenticacion.dart';
 import '../services/servicios.dart';
 import 'mascota.dart';
+import 'pantalla_acceso_docente.dart';
 
 /// ActividadConfiguracion (9_UML.pdf y 6_DisenoUI.pdf pagina 6).
 /// Incluye el boton de 1 clic para descargar e instalar el modelo GGUF
 /// cuantizado + base vectorial SEP + prueba directa del narrador de voz TTS.
+///
+/// Solo se entra con la contrasena del docente ([abrirPanelDocente]); la sesion
+/// se cierra sola tras unos minutos sin tocar la pantalla.
 class PantallaConfiguracion extends StatefulWidget {
 	const PantallaConfiguracion({
 		super.key,
@@ -31,10 +38,76 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 	String _estadoUSB = 'USB sin comprobar';
 	ReporteActualizacion? _ultimoReporte;
 
+	/// Revisa periodicamente si la sesion docente caduco por inactividad.
+	Timer? _vigilanteSesion;
+
+	ServicioAutenticacion get _auth => widget.controlador.autenticacion;
+
 	@override
 	void initState() {
 		super.initState();
 		iniciar();
+		_vigilanteSesion = Timer.periodic(
+			const Duration(seconds: 10),
+			(_) => _revisarSesion(),
+		);
+	}
+
+	@override
+	void dispose() {
+		_vigilanteSesion?.cancel();
+		super.dispose();
+	}
+
+	/// Si la sesion caduco (nadie toco el panel en varios minutos), regresa al
+	/// inicio para que los alumnos no puedan cambiar la configuracion.
+	void _revisarSesion() {
+		if (!mounted || _auth.sesionActiva) {
+			return;
+		}
+		// Con un dialogo abierto (p. ej. cambiando la contrasena) se espera a que
+		// se cierre, para no sacar al docente a media accion.
+		if (ModalRoute.of(context)?.isCurrent == false) {
+			return;
+		}
+		_salirDelPanel('La sesión docente se cerró por inactividad.');
+	}
+
+	void _cerrarSesionDocente() {
+		_auth.cerrarSesion();
+		_salirDelPanel('Sesión docente cerrada. El panel quedó protegido.');
+	}
+
+	void _salirDelPanel(String mensaje) {
+		_vigilanteSesion?.cancel();
+		final ScaffoldMessengerState avisos = ScaffoldMessenger.of(context);
+		Navigator.of(context).pop();
+		avisos.showSnackBar(
+			SnackBar(
+				content: Row(
+					children: <Widget>[
+						const Icon(Icons.lock_rounded, color: Colors.white),
+						const SizedBox(width: 10),
+						Expanded(child: Text(mensaje)),
+					],
+				),
+				backgroundColor: Paleta.verdeBosque,
+				behavior: SnackBarBehavior.floating,
+			),
+		);
+	}
+
+	/// Dialogo para que el docente cambie la contrasena que le entregaron.
+	Future<void> _cambiarContrasenaClick() async {
+		final bool? cambiada = await showDialog<bool>(
+			context: context,
+			builder: (_) => _DialogoCambiarContrasena(auth: _auth),
+		);
+		if (!mounted || cambiada != true) {
+			return;
+		}
+		setState(() {});
+		mostrarNotificacionExito('Contraseña actualizada. Úsala la próxima vez que entres.');
 	}
 
 	/// Metodo oficial del UML: +iniciar() : void
@@ -219,109 +292,122 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 					widget.controlador.pipelineRAG.motorLLM;
 
 				return Scaffold(
-					body: Container(
-						decoration: const BoxDecoration(
-							gradient: LinearGradient(
-								begin: Alignment.topCenter,
-								end: Alignment.bottomCenter,
-								colors: <Color>[
-									Paleta.cremaFondo,
-									Paleta.cremaTarjeta,
-									Paleta.salviaSuave,
-								],
+					body: Listener(
+						// Cualquier toque cuenta como actividad y mantiene la sesion abierta.
+						behavior: HitTestBehavior.translucent,
+						onPointerDown: (_) => _auth.renovarSesion(),
+						child: Container(
+							decoration: const BoxDecoration(
+								gradient: LinearGradient(
+									begin: Alignment.topCenter,
+									end: Alignment.bottomCenter,
+									colors: <Color>[
+										Paleta.cremaFondo,
+										Paleta.cremaTarjeta,
+										Paleta.salviaSuave,
+									],
+								),
 							),
-						),
-						child: SafeArea(
-							child: Column(
-								children: <Widget>[
-									_construirEncabezado(context),
-									Expanded(
-										child: SingleChildScrollView(
-											padding: const EdgeInsets.symmetric(
-												horizontal: 14,
-												vertical: 6,
-											),
-											child: Center(
-												child: ConstrainedBox(
-													constraints:
-														const BoxConstraints(
-															maxWidth: 840,
-														),
-													child: LayoutBuilder(
-														builder: (
-															BuildContext context,
-															BoxConstraints bc,
-														) {
-															final bool ancho =
-																bc.maxWidth > 660;
-															if (ancho) {
-																return Row(
-																	crossAxisAlignment:
-																		CrossAxisAlignment
-																			.start,
-																	children: <Widget>[
-																		Expanded(
-																			flex: 11,
-																			child: _tarjetaBaseConocimiento(
-																				cfg,
-																				almacen,
-																				motor,
+							child: SafeArea(
+								child: Column(
+									children: <Widget>[
+										_construirEncabezado(context),
+										Expanded(
+											child: SingleChildScrollView(
+												padding: const EdgeInsets.symmetric(
+													horizontal: 14,
+													vertical: 6,
+												),
+												child: Center(
+													child: ConstrainedBox(
+														constraints:
+															const BoxConstraints(
+																maxWidth: 840,
+															),
+														child: LayoutBuilder(
+															builder: (
+																BuildContext context,
+																BoxConstraints bc,
+															) {
+																final bool ancho =
+																	bc.maxWidth > 660;
+																if (ancho) {
+																	return Row(
+																		crossAxisAlignment:
+																			CrossAxisAlignment
+																				.start,
+																		children: <Widget>[
+																			Expanded(
+																				flex: 11,
+																				child: _tarjetaBaseConocimiento(
+																					cfg,
+																					almacen,
+																					motor,
+																				),
 																			),
+																			const SizedBox(
+																				width: 14,
+																			),
+																			Expanded(
+																				flex: 10,
+																				child: Column(
+																					children: <Widget>[
+																						_tarjetaActualizarUSB(
+																							almacen,
+																						),
+																						const SizedBox(
+																							height: 14,
+																						),
+																						_tarjetaAccesibilidad(
+																							cfg,
+																						),
+																						const SizedBox(
+																							height: 14,
+																						),
+																						_tarjetaSeguridad(),
+																					],
+																				),
+																			),
+																		],
+																	);
+																}
+																return Column(
+																	children: <Widget>[
+																		_tarjetaBaseConocimiento(
+																			cfg,
+																			almacen,
+																			motor,
 																		),
 																		const SizedBox(
-																			width: 14,
+																			height: 12,
 																		),
-																		Expanded(
-																			flex: 10,
-																			child: Column(
-																				children: <Widget>[
-																					_tarjetaActualizarUSB(
-																						almacen,
-																					),
-																					const SizedBox(
-																						height: 14,
-																					),
-																					_tarjetaAccesibilidad(
-																						cfg,
-																					),
-																				],
-																			),
+																		_tarjetaActualizarUSB(
+																			almacen,
+																		),
+																		const SizedBox(
+																			height: 12,
+																		),
+																		_tarjetaAccesibilidad(
+																			cfg,
+																		),
+																		const SizedBox(
+																			height: 12,
+																		),
+																		_tarjetaSeguridad(),
+																		const SizedBox(
+																			height: 8,
 																		),
 																	],
 																);
-															}
-															return Column(
-																children: <Widget>[
-																	_tarjetaBaseConocimiento(
-																		cfg,
-																		almacen,
-																		motor,
-																	),
-																	const SizedBox(
-																		height: 12,
-																	),
-																	_tarjetaActualizarUSB(
-																		almacen,
-																	),
-																	const SizedBox(
-																		height: 12,
-																	),
-																	_tarjetaAccesibilidad(
-																		cfg,
-																	),
-																	const SizedBox(
-																		height: 8,
-																	),
-																],
-															);
-														},
+															},
+														),
 													),
 												),
 											),
 										),
-									),
-									_barraEstadoInferior(cfg),
-								],
+										_barraEstadoInferior(cfg),
+									],
+								),
 							),
 						),
 					),
@@ -389,6 +475,18 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 							],
 						),
 					),
+					IconButton(
+						tooltip: 'Cerrar sesión docente',
+						visualDensity: VisualDensity.compact,
+						style: IconButton.styleFrom(
+							backgroundColor: Colors.white,
+							foregroundColor: Paleta.verdeBosque,
+							side: const BorderSide(color: Paleta.bordeSuave),
+						),
+						onPressed: _cerrarSesionDocente,
+						icon: const Icon(Icons.lock_outline_rounded, size: 18),
+					),
+					const SizedBox(width: 6),
 					const Mascota(
 						estado: EstadoMascota.reposo,
 						tamano: 34,
@@ -994,6 +1092,151 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 		);
 	}
 
+	/// Tarjeta "Acceso docente": estado de la contrasena, cambio y cierre de sesion.
+	Widget _tarjetaSeguridad() {
+		final bool inicial = _auth.usaContrasenaInicial;
+		final DateTime? anterior = _auth.accesoAnterior;
+		final int minutos = Reglas.duracionSesionDocente.inMinutes;
+		return Container(
+			padding: const EdgeInsets.all(14),
+			decoration: BoxDecoration(
+				color: Colors.white,
+				borderRadius: BorderRadius.circular(20),
+				border: Border.all(color: Paleta.bordeSuave),
+			),
+			child: Column(
+				crossAxisAlignment: CrossAxisAlignment.start,
+				children: <Widget>[
+					Row(
+						children: <Widget>[
+							Container(
+								width: 32,
+								height: 32,
+								decoration: BoxDecoration(
+									color: Paleta.esferaCeleste,
+									borderRadius: BorderRadius.circular(9),
+								),
+								child: const Icon(
+									Icons.admin_panel_settings_rounded,
+									size: 18,
+									color: Paleta.verdeBosque,
+								),
+							),
+							const SizedBox(width: 10),
+							const Expanded(
+								child: Text(
+									'Acceso docente',
+									style: TextStyle(
+										fontSize: 15.5,
+										fontWeight: FontWeight.w800,
+										color: Paleta.textoPrimario,
+									),
+								),
+							),
+						],
+					),
+					const SizedBox(height: 6),
+					Text(
+						'Este panel está protegido con contraseña. La sesión se cierra sola '
+						'tras $minutos min sin tocar la pantalla.',
+						style: const TextStyle(
+							fontSize: 12.5,
+							color: Paleta.textoSecundario,
+						),
+					),
+					const SizedBox(height: 10),
+					Container(
+						width: double.infinity,
+						padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+						decoration: BoxDecoration(
+							color: inicial ? Paleta.alertaMaestro : Paleta.cremaTarjeta,
+							borderRadius: BorderRadius.circular(12),
+							border: Border.all(
+								color: inicial ? Paleta.bordeAlerta : Paleta.bordeSuave,
+							),
+						),
+						child: Row(
+							children: <Widget>[
+								Icon(
+									inicial
+										? Icons.warning_amber_rounded
+										: Icons.verified_user_rounded,
+									size: 17,
+									color: inicial ? Paleta.bordeAlerta : Paleta.verdeBosque,
+								),
+								const SizedBox(width: 8),
+								Expanded(
+									child: Text(
+										inicial
+											? 'Sigues usando la contraseña inicial. Cámbiala para que solo tú puedas entrar.'
+											: 'Contraseña personal activa'
+												'${anterior == null ? '' : ' · Acceso anterior: ${_fecha(anterior)}'}',
+										style: const TextStyle(
+											fontSize: 12,
+											fontWeight: FontWeight.w600,
+											color: Paleta.textoPrimario,
+										),
+									),
+								),
+							],
+						),
+					),
+					const SizedBox(height: 10),
+					SizedBox(
+						width: double.infinity,
+						child: FilledButton.icon(
+							style: FilledButton.styleFrom(
+								backgroundColor: Paleta.verdeBoton,
+								foregroundColor: Colors.white,
+								padding: const EdgeInsets.symmetric(vertical: 11),
+								shape: RoundedRectangleBorder(
+									borderRadius: BorderRadius.circular(14),
+								),
+							),
+							onPressed: _cambiarContrasenaClick,
+							icon: const Icon(Icons.password_rounded, size: 18),
+							label: const Text(
+								'Cambiar contraseña',
+								style: TextStyle(
+									fontSize: 13.5,
+									fontWeight: FontWeight.w700,
+								),
+							),
+						),
+					),
+					const SizedBox(height: 8),
+					SizedBox(
+						width: double.infinity,
+						child: OutlinedButton.icon(
+							style: OutlinedButton.styleFrom(
+								foregroundColor: Paleta.verdeBosque,
+								side: const BorderSide(color: Paleta.bordeSuave),
+								padding: const EdgeInsets.symmetric(vertical: 10),
+								shape: RoundedRectangleBorder(
+									borderRadius: BorderRadius.circular(14),
+								),
+							),
+							onPressed: _cerrarSesionDocente,
+							icon: const Icon(Icons.lock_outline_rounded, size: 18),
+							label: const Text(
+								'Cerrar sesión docente',
+								style: TextStyle(
+									fontSize: 13,
+									fontWeight: FontWeight.w700,
+								),
+							),
+						),
+					),
+				],
+			),
+		);
+	}
+
+	String _fecha(DateTime d) {
+		String dos(int n) => n.toString().padLeft(2, '0');
+		return '${dos(d.day)}/${dos(d.month)}/${d.year} ${dos(d.hour)}:${dos(d.minute)}';
+	}
+
 	Widget _barraEstadoInferior(ConfiguracionAula cfg) {
 		final String textoTam =
 			cfg.tamanoFuente > 17 ? 'Texto grande' : 'Texto normal';
@@ -1024,6 +1267,151 @@ class _PantallaConfiguracionState extends State<PantallaConfiguracion> {
 					),
 				),
 			),
+		);
+	}
+}
+
+/// Dialogo para cambiar la contrasena del docente. Devuelve true si se cambio.
+class _DialogoCambiarContrasena extends StatefulWidget {
+	const _DialogoCambiarContrasena({required this.auth});
+
+	final ServicioAutenticacion auth;
+
+	@override
+	State<_DialogoCambiarContrasena> createState() =>
+		_DialogoCambiarContrasenaState();
+}
+
+class _DialogoCambiarContrasenaState extends State<_DialogoCambiarContrasena> {
+	final TextEditingController _actual = TextEditingController();
+	final TextEditingController _nueva = TextEditingController();
+	final TextEditingController _confirmacion = TextEditingController();
+	bool _guardando = false;
+	String _error = '';
+
+	@override
+	void dispose() {
+		_actual.dispose();
+		_nueva.dispose();
+		_confirmacion.dispose();
+		super.dispose();
+	}
+
+	Future<void> _guardar() async {
+		if (_guardando) {
+			return;
+		}
+		setState(() {
+			_guardando = true;
+			_error = '';
+		});
+		// Deja que se pinte el indicador antes de calcular las huellas.
+		await Future<void>.delayed(const Duration(milliseconds: 60));
+		final String? problema = await widget.auth.cambiarContrasena(
+			actual: _actual.text,
+			nueva: _nueva.text,
+			confirmacion: _confirmacion.text,
+		);
+		if (!mounted) {
+			return;
+		}
+		if (problema == null) {
+			Navigator.of(context).pop(true);
+			return;
+		}
+		setState(() {
+			_guardando = false;
+			_error = problema;
+		});
+	}
+
+	@override
+	Widget build(BuildContext context) {
+		return AlertDialog(
+			backgroundColor: Colors.white,
+			surfaceTintColor: Colors.transparent,
+			shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+			title: const Row(
+				children: <Widget>[
+					Icon(Icons.password_rounded, color: Paleta.verdeBosque, size: 20),
+					SizedBox(width: 8),
+					Expanded(
+						child: Text(
+							'Cambiar contraseña',
+							style: TextStyle(
+								fontSize: 17,
+								fontWeight: FontWeight.w800,
+								color: Paleta.textoPrimario,
+							),
+						),
+					),
+				],
+			),
+			content: SingleChildScrollView(
+				child: Column(
+					mainAxisSize: MainAxisSize.min,
+					crossAxisAlignment: CrossAxisAlignment.start,
+					children: <Widget>[
+						Text(
+							'Usa de ${Reglas.minCaracteresContrasena} a '
+							'${Reglas.maxCaracteresContrasena} caracteres y no la compartas '
+							'con los alumnos.',
+							style: const TextStyle(
+								fontSize: 12.5,
+								height: 1.35,
+								color: Paleta.textoSecundario,
+							),
+						),
+						const SizedBox(height: 12),
+						CampoContrasena(
+							controlador: _actual,
+							etiqueta: 'Contraseña actual',
+							autofocus: true,
+							habilitado: !_guardando,
+						),
+						const SizedBox(height: 10),
+						CampoContrasena(
+							controlador: _nueva,
+							etiqueta: 'Contraseña nueva',
+							icono: Icons.lock_reset_rounded,
+							habilitado: !_guardando,
+						),
+						const SizedBox(height: 10),
+						CampoContrasena(
+							controlador: _confirmacion,
+							etiqueta: 'Repite la contraseña nueva',
+							icono: Icons.lock_reset_rounded,
+							habilitado: !_guardando,
+							onSubmitted: (_) => _guardar(),
+						),
+						if (_error.isNotEmpty) ...<Widget>[
+							const SizedBox(height: 8),
+							Text(
+								_error,
+								style: TextStyle(
+									fontSize: 12,
+									fontWeight: FontWeight.w600,
+									color: Colors.red.shade700,
+								),
+							),
+						],
+					],
+				),
+			),
+			actions: <Widget>[
+				TextButton(
+					onPressed: _guardando ? null : () => Navigator.of(context).pop(false),
+					child: const Text('Cancelar'),
+				),
+				FilledButton(
+					style: FilledButton.styleFrom(
+						backgroundColor: Paleta.verdeBoton,
+						foregroundColor: Colors.white,
+					),
+					onPressed: _guardando ? null : _guardar,
+					child: Text(_guardando ? 'Guardando…' : 'Guardar'),
+				),
+			],
 		);
 	}
 }

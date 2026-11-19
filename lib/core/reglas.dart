@@ -39,6 +39,26 @@ class Reglas {
 	// RNF-07: Tiempo maximo permitido para actualizacion por USB (10 minutos).
 	static const Duration tiempoMaximoActualizacionUSB = Duration(minutes: 10);
 
+	// Acceso docente al panel de Configuracion (sugerencia de la profesora).
+	// Autenticacion 100% local en SQLite: sin proveedores externos ni internet.
+	//  - contrasenaDocenteInicial: la que la direccion entrega al maestro; se
+	//    guarda en la base solo como huella SHA-256 con sal y se puede cambiar.
+	//  - codigoRecuperacionDocente: lo resguarda la direccion; si el maestro
+	//    olvida su contrasena, este codigo la regresa a la inicial.
+	//  - maxIntentosAccesoDocente / bloqueoAccesoDocente: tras varios intentos
+	//    fallidos el acceso se bloquea un momento (evita que los ninos adivinen).
+	//  - duracionSesionDocente: tiempo que el panel queda abierto sin volver a
+	//    pedir la contrasena.
+	static const String usuarioDocente = 'docente';
+	static const String contrasenaDocenteInicial = 'Maestro2026';
+	static const String codigoRecuperacionDocente = 'SEP-CTE-2026';
+	static const int minCaracteresContrasena = 6;
+	static const int maxCaracteresContrasena = 32;
+	static const int iteracionesHashContrasena = 4000;
+	static const int maxIntentosAccesoDocente = 5;
+	static const Duration bloqueoAccesoDocente = Duration(seconds: 60);
+	static const Duration duracionSesionDocente = Duration(minutes: 5);
+
 	// RNF-09: Presupuesto maximo de almacenamiento local (4 GB = 4096 MB).
 	static const double maxAlmacenamientoMB = 4096.0;
 

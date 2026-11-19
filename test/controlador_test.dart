@@ -1,11 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geograf_ia/controllers/controlador_configuracion.dart';
 import 'package:geograf_ia/controllers/controlador_tutor.dart';
+import 'package:geograf_ia/core/hash_seguro.dart';
 import 'package:geograf_ia/core/reglas.dart';
 import 'package:geograf_ia/data/esquema_sql.dart';
 import 'package:geograf_ia/data/persistencia.dart';
 import 'package:geograf_ia/models/entidades_db.dart';
 import 'package:geograf_ia/models/modelos.dart';
+import 'package:geograf_ia/services/servicio_autenticacion.dart';
 import 'package:geograf_ia/services/servicios.dart';
 
 void main() {
@@ -159,8 +161,8 @@ void main() {
 	});
 
 	group('Base de datos local (modo seguro y reglas de negocio)', () {
-		test('El esquema define las 11 tablas y ninguna guarda nombres de personas', () {
-			expect(EsquemaSql.tablas.length, 11);
+		test('El esquema define las 12 tablas y ninguna guarda nombres de personas', () {
+			expect(EsquemaSql.tablas.length, 12);
 			final String todo = EsquemaSql.tablas.join('\n').toLowerCase();
 			expect(todo.contains('nombre_alumno'), isFalse);
 			expect(todo.contains('apellido'), isFalse);
@@ -227,6 +229,144 @@ void main() {
 			expect(cfg.tamanoFuente, 22);
 			expect(cfg.altoContraste, isTrue);
 			expect(cfg.vozAutomatica, isFalse);
+		});
+	});
+
+	group('Acceso docente al panel de Configuracion (SQLite, sin internet)', () {
+		DateTime ahora = DateTime(2026, 11, 18, 10);
+		ServicioAutenticacion nuevoServicio() {
+			final Persistencia p = Persistencia.sinBaseDatos();
+			return ServicioAutenticacion(() => p, reloj: () => ahora);
+		}
+
+		setUp(() => ahora = DateTime(2026, 11, 18, 10));
+
+		test('SHA-256 en Dart puro coincide con los vectores oficiales', () {
+			expect(
+				HashSeguro.sha256Hex(''),
+				'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+			);
+			expect(
+				HashSeguro.sha256Hex('abc'),
+				'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
+			);
+			final String sal = HashSeguro.generarSal();
+			expect(sal.length, 32);
+			expect(
+				HashSeguro.huellaContrasena('x', sal, 10),
+				isNot(HashSeguro.huellaContrasena('x', HashSeguro.generarSal(), 10)),
+			);
+		});
+
+		test('Solo la contrasena entregada al docente abre la sesion', () async {
+			final ServicioAutenticacion auth = nuevoServicio();
+			expect(auth.sesionActiva, isFalse);
+			expect((await auth.iniciarSesion('   ')).resultado, ResultadoAcceso.vacio);
+
+			final RespuestaAcceso mala = await auth.iniciarSesion('1234');
+			expect(mala.resultado, ResultadoAcceso.contrasenaIncorrecta);
+			expect(mala.intentosRestantes, Reglas.maxIntentosAccesoDocente - 1);
+			expect(auth.sesionActiva, isFalse);
+
+			final RespuestaAcceso buena =
+				await auth.iniciarSesion(Reglas.contrasenaDocenteInicial);
+			expect(buena.exitoso, isTrue);
+			expect(auth.sesionActiva, isTrue);
+			expect(auth.usaContrasenaInicial, isTrue);
+
+			auth.cerrarSesion();
+			expect(auth.sesionActiva, isFalse);
+		});
+
+		test('Tras varios intentos fallidos el acceso se bloquea un momento', () async {
+			final ServicioAutenticacion auth = nuevoServicio();
+			RespuestaAcceso r = RespuestaAcceso.vacio();
+			for (int i = 0; i < Reglas.maxIntentosAccesoDocente; i++) {
+				r = await auth.iniciarSesion('adivinanza$i');
+			}
+			expect(r.resultado, ResultadoAcceso.bloqueado);
+			// Ni la contrasena correcta entra mientras dura el bloqueo.
+			final RespuestaAcceso durante =
+				await auth.iniciarSesion(Reglas.contrasenaDocenteInicial);
+			expect(durante.resultado, ResultadoAcceso.bloqueado);
+			expect(auth.sesionActiva, isFalse);
+
+			ahora = ahora.add(Reglas.bloqueoAccesoDocente + const Duration(seconds: 1));
+			expect(await auth.bloqueoRestante(), Duration.zero);
+			expect(
+				(await auth.iniciarSesion(Reglas.contrasenaDocenteInicial)).exitoso,
+				isTrue,
+			);
+		});
+
+		test('La sesion se cierra sola tras unos minutos sin actividad', () async {
+			final ServicioAutenticacion auth = nuevoServicio();
+			await auth.iniciarSesion(Reglas.contrasenaDocenteInicial);
+
+			ahora = ahora.add(Reglas.duracionSesionDocente - const Duration(seconds: 5));
+			auth.renovarSesion();
+			ahora = ahora.add(const Duration(minutes: 1));
+			expect(auth.sesionActiva, isTrue);
+
+			ahora = ahora.add(Reglas.duracionSesionDocente);
+			expect(auth.sesionActiva, isFalse);
+			auth.renovarSesion();
+			expect(auth.sesionActiva, isFalse);
+		});
+
+		test('El docente cambia su contrasena y la anterior deja de servir', () async {
+			final ServicioAutenticacion auth = nuevoServicio();
+			expect(
+				await auth.cambiarContrasena(
+					actual: 'equivocada',
+					nueva: 'Volcan#45',
+					confirmacion: 'Volcan#45',
+				),
+				isNotNull,
+			);
+			expect(
+				ServicioAutenticacion.validarNueva('abc', 'abc'),
+				isNotNull,
+			);
+			expect(
+				ServicioAutenticacion.validarNueva('Volcan#45', 'Volcan#46'),
+				isNotNull,
+			);
+			expect(
+				await auth.cambiarContrasena(
+					actual: Reglas.contrasenaDocenteInicial,
+					nueva: 'Volcan#45',
+					confirmacion: 'Volcan#45',
+				),
+				isNull,
+			);
+			expect(auth.usaContrasenaInicial, isFalse);
+			expect(
+				(await auth.iniciarSesion(Reglas.contrasenaDocenteInicial)).exitoso,
+				isFalse,
+			);
+			expect((await auth.iniciarSesion('Volcan#45')).exitoso, isTrue);
+		});
+
+		test('El codigo de recuperacion regresa a la contrasena inicial', () async {
+			final ServicioAutenticacion auth = nuevoServicio();
+			await auth.cambiarContrasena(
+				actual: Reglas.contrasenaDocenteInicial,
+				nueva: 'Montana77',
+				confirmacion: 'Montana77',
+			);
+			final RespuestaAcceso mal = await auth.restablecerConCodigo('NO-ES');
+			expect(mal.resultado, ResultadoAcceso.contrasenaIncorrecta);
+
+			final RespuestaAcceso ok = await auth.restablecerConCodigo(
+				Reglas.codigoRecuperacionDocente.toLowerCase(),
+			);
+			expect(ok.exitoso, isTrue);
+			expect(auth.usaContrasenaInicial, isTrue);
+			expect(
+				(await auth.iniciarSesion(Reglas.contrasenaDocenteInicial)).exitoso,
+				isTrue,
+			);
 		});
 	});
 }
