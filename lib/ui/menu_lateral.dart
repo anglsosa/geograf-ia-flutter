@@ -7,7 +7,7 @@ import '../core/tema.dart';
 import '../models/entidades_db.dart';
 import '../models/modelos.dart';
 import 'mascota.dart';
-import 'pantalla_configuracion.dart';
+import 'pantalla_acceso_docente.dart';
 import 'pantalla_grupo.dart';
 
 /// Menu lateral (Sidebar) armonizado con la paleta suave crema/pastel de la app.
@@ -383,17 +383,11 @@ class MenuLateralGeografIA extends StatelessWidget {
 									),
 									onPressed: () {
 										Navigator.of(context).pop();
-										Navigator.of(context).push(
-											MaterialPageRoute<void>(
-												builder: (_) =>
-													PantallaConfiguracion(
-														controlador: controlador,
-													),
-											),
-										);
+										// Pide la contrasena del docente si no hay sesion abierta.
+										abrirPanelDocente(context, controlador);
 									},
 									icon: const Icon(
-										Icons.settings_outlined,
+										Icons.admin_panel_settings_outlined,
 										size: 18,
 									),
 									label: const Text(

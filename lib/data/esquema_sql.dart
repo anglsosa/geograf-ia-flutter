@@ -1,16 +1,19 @@
 /// Esquema de la base de datos local de Geograf-IA (SQLite).
 ///
-/// 11 tablas en tercera forma normal. Solo se usa SQL basico (sin UPSERT, JSON1
+/// 12 tablas en tercera forma normal. Solo se usa SQL basico (sin UPSERT, JSON1
 /// ni funciones de ventana) para funcionar tambien en versiones antiguas de
 /// SQLite de Android. Las fechas se guardan como texto ISO-8601 y los valores
 /// booleanos como 0 o 1.
 ///
 /// Privacidad (RNF-10): no existe ninguna columna con nombres ni datos
 /// personales. El alumno solo tiene un codigo anonimo asignado por la app.
+///
+/// Version 2: agrega `credencial_docente` (acceso con contrasena al panel de
+/// Configuracion). Las bases de la version 1 se migran sin perder datos.
 class EsquemaSql {
 	EsquemaSql._();
 
-	static const int version = 1;
+	static const int version = 2;
 	static const String nombreArchivo = 'geograf_ia.db';
 
 	/// Sentencias CREATE TABLE en orden de dependencia (primero las tablas padre).
@@ -129,6 +132,31 @@ CREATE TABLE actualizacion_usb (
 	fragmentos_cargados INTEGER NOT NULL DEFAULT 0,
 	duracion_seg REAL NOT NULL DEFAULT 0
 )''',
+		tablaCredencialDocente,
+	];
+
+	/// Credencial del docente para entrar al panel de Configuracion (v2).
+	/// Nunca guarda la contrasena: solo su huella SHA-256 iterada con sal.
+	/// `intentos_fallidos` y `bloqueado_hasta` viven en la base para que cerrar
+	/// la app no sirva para saltarse el bloqueo.
+	static const String tablaCredencialDocente = '''
+CREATE TABLE credencial_docente (
+	id_credencial INTEGER PRIMARY KEY AUTOINCREMENT,
+	usuario TEXT NOT NULL UNIQUE,
+	huella_contrasena TEXT NOT NULL,
+	sal TEXT NOT NULL,
+	iteraciones INTEGER NOT NULL CHECK (iteraciones > 0),
+	es_inicial INTEGER NOT NULL DEFAULT 1 CHECK (es_inicial IN (0, 1)),
+	intentos_fallidos INTEGER NOT NULL DEFAULT 0,
+	bloqueado_hasta TEXT,
+	ultimo_acceso TEXT,
+	creado_en TEXT NOT NULL,
+	actualizado_en TEXT NOT NULL
+)''';
+
+	/// Cambios para llevar una base de la version [desde] a la actual.
+	static List<String> migraciones(int desde) => <String>[
+		if (desde < 2) tablaCredencialDocente,
 	];
 
 	/// Indices para las consultas mas frecuentes (historial y estadisticas).

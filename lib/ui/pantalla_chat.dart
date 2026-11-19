@@ -7,7 +7,7 @@ import '../models/modelos.dart';
 import '../services/servicios.dart';
 import 'mascota.dart';
 import 'menu_lateral.dart';
-import 'pantalla_configuracion.dart';
+import 'pantalla_acceso_docente.dart';
 import 'vista_llamada_voz.dart';
 
 /// ActividadChat (9_UML.pdf) - Pantalla principal responsiva nino-tutor.
@@ -427,20 +427,15 @@ class _PantallaChatState extends State<PantallaChat> {
 						),
 					),
 					IconButton(
-						tooltip: 'Configuración y USB',
+						tooltip: 'Configuración (solo docente)',
 						visualDensity: VisualDensity.compact,
 						icon: const Icon(
 							Icons.settings_outlined,
 							size: 21,
 							color: Paleta.textoPrimario,
 						),
-						onPressed: () => Navigator.of(context).push(
-							MaterialPageRoute<void>(
-								builder: (_) => PantallaConfiguracion(
-									controlador: c,
-								),
-							),
-						),
+						// Pide la contrasena del docente si no hay sesion abierta.
+						onPressed: () => abrirPanelDocente(context, c),
 					),
 				],
 			),

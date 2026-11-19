@@ -8,6 +8,7 @@ import '../data/repositorio_corpus.dart';
 import '../models/entidades_db.dart';
 import '../models/modelos.dart';
 import '../services/corpus_sep_oficial.dart';
+import '../services/servicio_autenticacion.dart';
 import '../services/servicio_conversacion.dart';
 import '../services/servicios.dart';
 
@@ -53,6 +54,11 @@ class ControladorTutor extends ChangeNotifier {
 	Persistencia get persistencia => _persistencia ??= Persistencia.sinBaseDatos();
 
 	bool get hayBaseDatos => persistencia.disponible;
+
+	/// Acceso con contrasena del docente al panel de Configuracion. Usa siempre
+	/// la persistencia vigente (la real en cuanto se abre la base SQLite).
+	late final ServicioAutenticacion autenticacion =
+		ServicioAutenticacion(() => persistencia);
 	Grupo? get grupoActivo => _grupo;
 	Alumno? get alumnoActivo => _alumno;
 	List<Grupo> get grupos => List<Grupo>.unmodifiable(_grupos);
