@@ -12,35 +12,45 @@ class ServicioConversacion {
 
 	final AlmacenVectoresChroma _almacen;
 	FragmentoSEP? _ultimoFragmento;
-	String _ultimaPregunta = '';
+	final List<Map<String, String>> _turnos = <Map<String, String>>[];
+
+	/// Copia acotada; el historial orienta la conversación, no acredita hechos.
+	List<Map<String, String>> get historial => _turnos
+		.map((turno) => Map<String, String>.unmodifiable(turno)).toList();
 
 	FragmentoSEP? get ultimoFragmento => _ultimoFragmento;
 
 	void reiniciar() {
 		_ultimoFragmento = null;
-		_ultimaPregunta = '';
+		_turnos.clear();
 	}
 
 	void restaurarTema(String claveFragmento, {String ultimaPregunta = ''}) {
 		for (final FragmentoSEP fragmento in _almacen.fragmentos) {
 			if (fragmento.idFragmento == claveFragmento) {
 				_ultimoFragmento = fragmento;
-				_ultimaPregunta = ultimaPregunta;
 				return;
 			}
 		}
 	}
 
 	void recordarResultado(String pregunta, ResultadoConsulta resultado) {
+		_turnos.add(<String, String>{
+			'pregunta': pregunta,
+			'respuesta': resultado.textoRespuesta.length > 350
+				? resultado.textoRespuesta.substring(0, 350) : resultado.textoRespuesta,
+		});
+		while (_turnos.length > 2) {
+			_turnos.removeAt(0);
+		}
 		final FragmentoSEP? fragmento = resultado.fragmentoAsociado;
 		if (fragmento != null) {
 			_ultimoFragmento = fragmento;
-			_ultimaPregunta = pregunta;
 		}
 	}
 
 	/// Responde intenciones que no requieren recuperar una explicación escolar.
-	ResultadoConsulta? responderSiAplica(String pregunta, int grado) {
+	ResultadoConsulta? responderSiAplica(String pregunta, int grado, {bool conModelo = false}) {
 		final String normalizada = AlmacenVectoresChroma.normalizar(pregunta);
 
 		if (_solicitaTemas(normalizada)) {
@@ -70,6 +80,7 @@ class ServicioConversacion {
 				);
 			}
 			final int gradoMasSimple = grado > 4 ? grado - 1 : 4;
+			if (conModelo) return null;
 			return ResultadoConsulta(
 				textoRespuesta:
 						'Claro. ${fragmento.explicacionParaGrado(gradoMasSimple)}',
@@ -94,14 +105,21 @@ class ServicioConversacion {
 	/// Convierte un seguimiento corto en una consulta recuperable sin cambiar la
 	/// pregunta que se muestra ni se guarda en el historial.
 	String prepararConsulta(String pregunta) {
+		pregunta = pregunta.replaceFirst(
+			RegExp(r'^\s*(muchas\s+)?gracias\s*[,!¡.]*\s*(pero\s*)?', caseSensitive: false), '');
 		final String normalizada = AlmacenVectoresChroma.normalizar(pregunta);
 		final FragmentoSEP? fragmento = _ultimoFragmento;
 		if (fragmento == null || !_esSeguimiento(normalizada)) {
 			return pregunta;
 		}
-		return '$pregunta. Tema anterior: ${fragmento.bloqueTema}. '
-				'Pregunta anterior: $_ultimaPregunta. Palabras del tema: '
-				'${fragmento.textoContenido}';
+		// Una pregunta explícita sobre otro tema no hereda el anterior.
+		final resultados = _almacen.buscar(pregunta, 1);
+		if (resultados.isNotEmpty &&
+			resultados.first.fragmento.idFragmento != fragmento.idFragmento &&
+			!RegExp(r'\b(eso|ese|esa|anterior)\b').hasMatch(normalizada)) {
+			return pregunta;
+		}
+		return '$pregunta. ${fragmento.bloqueTema}';
 	}
 
 	ResultadoConsulta _respuestaConversacional(String texto) {
@@ -149,7 +167,7 @@ class ServicioConversacion {
 	}
 
 	bool _esAgradecimiento(String texto) {
-		return RegExp(r'^(muchas )?gracias[ a-z]*$').hasMatch(texto);
+		return RegExp(r'^(muchas )?gracias( por (todo|tu ayuda|la ayuda))?$').hasMatch(texto);
 	}
 
 	bool _esDespedida(String texto) {
@@ -174,7 +192,8 @@ class ServicioConversacion {
 			return false;
 		}
 		return texto.startsWith('y ') ||
-				texto.contains('eso') ||
+				_pideExplicacionMasSimple(texto) ||
+				RegExp(r'\b(eso|ese|esa)\b').hasMatch(texto) ||
 				texto.contains('ese tema') ||
 				texto.contains('lo anterior') ||
 				texto == 'por que' ||

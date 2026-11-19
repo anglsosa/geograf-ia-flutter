@@ -8,7 +8,25 @@ import 'package:geograf_ia/data/persistencia.dart';
 import 'package:geograf_ia/models/entidades_db.dart';
 import 'package:geograf_ia/models/modelos.dart';
 import 'package:geograf_ia/services/servicio_autenticacion.dart';
+import 'package:geograf_ia/services/servicio_conversacion.dart';
 import 'package:geograf_ia/services/servicios.dart';
+
+class MotorRegistro extends MotorLLMLocal {
+	String pregunta = '';
+	String contexto = '';
+	List<Map<String, String>> historial = [];
+
+	@override
+	Future<RespuestaMotor> inferirConPrompt(String promptSistema, String contexto,
+		String pregunta, {FragmentoSEP? fragmentoPrincipal, int gradoEscolar = 4,
+		List<Map<String, String>> historial = const [],
+		void Function(String parcial)? alTextoParcial}) async {
+		this.pregunta = pregunta;
+		this.contexto = contexto;
+		this.historial = historial;
+		return const RespuestaMotor(texto: 'Respuesta de prueba');
+	}
+}
 
 void main() {
 	test('Sanear rechaza texto muy corto y recorta el largo excesivo', () {
@@ -45,6 +63,49 @@ void main() {
 	});
 
 	group('Conversacion contextual', () {
+		test('el motor recibe pregunta original, historial y evidencia identificada', () async {
+			final motor = MotorRegistro();
+			final pipeline = ServicioRAG(motorLLM: motor);
+			final r = await pipeline.generarRespuestaFundamentada(
+				'volcanes', 4, preguntaOriginal: '¿Y eso?',
+				historial: <Map<String, String>>[{'pregunta': 'volcanes', 'respuesta': 'Antes'}]);
+			expect(motor.pregunta, '¿Y eso?');
+			expect(motor.historial.single['respuesta'], 'Antes');
+			expect(motor.contexto, contains('[${r.fragmentoAsociado!.idFragmento}]'));
+		});
+		test('agradecimiento con pregunta conserva la intención académica', () async {
+			final c = ControladorTutor();
+			final r = await c.procesarConsulta('Gracias, pero ¿por qué tiembla en México?');
+			expect(r.fuenteEncontrada, isTrue);
+			expect(r.esConversacional, isFalse);
+		});
+
+		test('cambio explícito de tema no arrastra volcanes', () async {
+			final c = ControladorTutor();
+			await c.procesarConsulta('¿Cómo se forma un volcán?');
+			final r = await c.procesarConsulta('¿Y cuáles son los continentes?');
+			expect(r.fragmentoAsociado?.idFragmento, 'SEP-GEO-06');
+		});
+
+		test('memoria acotada y reinicio sin compartir turnos', () {
+			final servicio = ServicioConversacion(AlmacenVectoresChroma());
+			for (int i = 0; i < 5; i++) {
+				servicio.recordarResultado('pregunta $i', ResultadoConsulta(
+					textoRespuesta: 'a' * 800, fuenteEncontrada: false));
+			}
+			expect(servicio.historial.length, 2);
+			expect(servicio.historial.first['pregunta'], 'pregunta 3');
+			expect(servicio.historial.last['respuesta']!.length, 350);
+			servicio.historial.clear();
+			expect(servicio.historial.length, 2);
+			servicio.reiniciar();
+			expect(servicio.historial, isEmpty);
+		});
+
+		test('una palabra que contiene eso no se interpreta como referencia', () {
+			final servicio = ServicioConversacion(AlmacenVectoresChroma());
+			expect(servicio.responderSiAplica('¿Qué es un tesoro?', 4), isNull);
+		});
 		test('lista temas disponibles sin remitir al maestro', () async {
 			final ControladorTutor c = ControladorTutor();
 			final ResultadoConsulta r =

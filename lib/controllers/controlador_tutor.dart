@@ -330,8 +330,10 @@ class ControladorTutor extends ChangeNotifier {
 		}
 		final int grado = _configuracionAula.obtenerGrado();
 		final ResultadoConsulta? conversacional =
-			_servicioConversacion.responderSiAplica(pregunta, grado);
+			_servicioConversacion.responderSiAplica(pregunta, grado,
+				conModelo: _pipelineRAG.motorLLM.modeloCargado);
 		if (conversacional != null) {
+			_servicioConversacion.recordarResultado(pregunta, conversacional);
 			return conversacional;
 		}
 		final String consultaRAG = _servicioConversacion.prepararConsulta(pregunta);
@@ -339,6 +341,8 @@ class ControladorTutor extends ChangeNotifier {
 			.generarRespuestaFundamentada(
 				consultaRAG,
 				grado,
+				preguntaOriginal: pregunta,
+				historial: _servicioConversacion.historial,
 				alTextoParcial: alTextoParcial,
 			)
 			.timeout(Reglas.tiempoMaximoRespuesta);
@@ -660,6 +664,8 @@ class ControladorTutor extends ChangeNotifier {
 			_mensajes.clear();
 			_servicioConversacion.reiniciar();
 			for (final ConsultaGuardada c in consultas) {
+				_servicioConversacion.recordarResultado(c.pregunta, ResultadoConsulta(
+					textoRespuesta: c.respuesta, fuenteEncontrada: !c.remitidaMaestro));
 				_mensajes.add(
 					MensajeChat(
 						id: 'db-${c.id}-usr',
