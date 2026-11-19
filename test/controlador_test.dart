@@ -44,7 +44,70 @@ class MotorRegistro extends MotorLLMLocal {
 	}
 }
 
+class MotorAsistido extends MotorRegistro {
+	String? reformulacion = 'rios';
+	bool aprobar = true;
+	int busquedas = 0;
+	int verificaciones = 0;
+	@override
+	bool get modeloCargado => true;
+	@override
+	Future<String?> reformularBusqueda(String pregunta, List<String> temas,
+		List<Map<String, String>> historial) async {
+		busquedas++;
+		return reformulacion;
+	}
+	@override
+	Future<bool> verificarRespaldo(String pregunta, String evidencia, String respuesta) async {
+		verificaciones++;
+		return aprobar;
+	}
+	@override
+	Future<RespuestaMotor> inferirConPrompt(String promptSistema, String contexto,
+		String pregunta, {FragmentoSEP? fragmentoPrincipal, int gradoEscolar = 4,
+		List<Map<String, String>> historial = const [],
+		void Function(String parcial)? alTextoParcial}) async {
+		this.pregunta = pregunta;
+		this.contexto = contexto;
+		alTextoParcial?.call('Borrador sin verificar');
+		return const RespuestaMotor(texto: 'Respuesta candidata', usoIA: true);
+	}
+}
+
 void main() {
+	group('Recuperación asistida y revisión de respaldo', () {
+		const parafrasis = '¿Adónde viajan las venas azules del paisaje?';
+		test('reformula una vez sin sustituir la pregunta original', () async {
+			final motor = MotorAsistido();
+			final rag = ServicioRAG(motorLLM: motor);
+			expect(rag.baseVectores.buscar(parafrasis, 3), isEmpty);
+			final r = await rag.generarRespuestaFundamentada(parafrasis, 4);
+			expect(r.fuenteEncontrada, isTrue);
+			expect(motor.busquedas, 1);
+			expect(motor.pregunta, parafrasis);
+			expect(motor.verificaciones, 1);
+		});
+		test('reformulación sin resultados o ausente conserva falta de cobertura', () async {
+			for (final consulta in <String?>[null, 'receta de pastel de chocolate']) {
+				final motor = MotorAsistido()..reformulacion = consulta;
+				final r = await ServicioRAG(motorLLM: motor).generarRespuestaFundamentada(parafrasis, 4);
+				expect(r.fuenteEncontrada, isFalse);
+				expect(motor.busquedas, 1);
+				expect(motor.verificaciones, 0);
+			}
+		});
+		test('rechaza candidato y nunca publica su borrador', () async {
+			final motor = MotorAsistido()..aprobar = false;
+			final publicados = <String>[];
+			final r = await ServicioRAG(motorLLM: motor).generarRespuestaFundamentada(
+				'¿Cómo se forma un volcán?', 4, alTextoParcial: publicados.add);
+			expect(r.generadoPorIA, isFalse);
+			expect(r.textoRespuesta, contains('No pude confirmar'));
+			expect(r.textoRespuesta, contains(r.fragmentoAsociado!.explicacionParaGrado(4)));
+			expect(publicados, [r.textoRespuesta]);
+			expect(motor.busquedas, 0);
+		});
+	});
 	test('introducciones usan material disponible sin generar hechos nuevos', () async {
 		final motor = MotorRegistro();
 		final rag = ServicioRAG(motorLLM: motor);
@@ -129,6 +192,10 @@ void main() {
 	});
 
 	group('Conversacion contextual', () {
+		test('un tema explícito con y no exige un tema anterior', () async {
+			final r = await ControladorTutor().procesarConsulta('¿Y los ríos?');
+			expect(r.fuenteEncontrada, isTrue);
+		});
 		test('el motor recibe pregunta original, historial y evidencia identificada', () async {
 			final motor = MotorRegistro();
 			final pipeline = ServicioRAG(motorLLM: motor);

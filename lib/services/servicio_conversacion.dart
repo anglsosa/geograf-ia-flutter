@@ -94,7 +94,8 @@ class ServicioConversacion {
 				esConversacional: true,
 			);
 		}
-		if (_esSeguimiento(normalizada) && _ultimoFragmento == null) {
+		if (_esSeguimiento(normalizada) && _ultimoFragmento == null &&
+			_almacen.buscar(pregunta, 1).isEmpty) {
 			return _respuestaConversacional(
 				'Quiero entenderte bien. ¿De qué tema estás hablando?',
 			);
