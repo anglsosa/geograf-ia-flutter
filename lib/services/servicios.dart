@@ -86,6 +86,8 @@ class AlmacenVectoresChroma {
 		'saber', 'sale', 'salen', 'ser', 'significa', 'significan', 'sirve', 'sirven',
 		'sobre', 'son', 'soy', 'sus', 'tiene', 'tienen', 'tipo', 'tipos',
 		'tus', 'una', 'unas', 'uno', 'unos', 'van', 'viene', 'vienen',
+		'entonces', 'necesito', 'necesitamos', 'informacion', 'informarme',
+		'acerca', 'gustaria', 'aprender', 'podrias', 'puedes', 'darme',
 	};
 
 	/// Terminos que no se truncan porque su raiz chocaria con otra palabra
@@ -1007,6 +1009,18 @@ class MotorLLMLocal extends ChangeNotifier {
 /// acotada en MotorLLMLocal con evidencia del corpus (RF-02 y RF-03).
 /// ============================================================================
 class ServicioRAG {
+	/// Una petición de introducción puede usar el texto pedagógico directamente.
+	/// No aplicar a seguimientos ni a preguntas con relaciones o condiciones.
+	static bool esSolicitudGeneral(String pregunta) {
+		final texto = AlmacenVectoresChroma.normalizar(pregunta);
+		if (texto.split(' ').length == 1) return true;
+		return RegExp(
+			r'^(?:(?:entonces|hola|por favor) )?(?:necesito|quiero|me gustaria|puedes darme|podrias darme|dame) informacion (?:sobre|acerca de) (?:el |la |los |las )?[a-z ]+$',
+		).hasMatch(texto) && !RegExp(
+			r'\b(por que|como|donde|cuando|cuanto|cual|si|pero)\b',
+		).hasMatch(texto);
+	}
+
 	ServicioRAG({
 		AlmacenVectoresChroma? baseVectores,
 		MotorLLMLocal? motorLLM,
@@ -1080,7 +1094,9 @@ class ServicioRAG {
 		final String contexto = '[${principal.idFragmento}] ${principal.bloqueTema}\n'
 			'${principal.explicacionParaGrado(grado)}';
 
-		final RespuestaMotor respuesta = await _motorLLM.inferirConPrompt(
+		final RespuestaMotor respuesta = esSolicitudGeneral(preguntaOriginal ?? pregunta)
+			? RespuestaMotor(texto: principal.explicacionParaGrado(grado))
+			: await _motorLLM.inferirConPrompt(
 			'',
 			contexto,
 			preguntaOriginal ?? pregunta,

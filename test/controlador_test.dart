@@ -45,6 +45,31 @@ class MotorRegistro extends MotorLLMLocal {
 }
 
 void main() {
+	test('introducciones usan material disponible sin generar hechos nuevos', () async {
+		final motor = MotorRegistro();
+		final rag = ServicioRAG(motorLLM: motor);
+		for (final pregunta in ['rios', 'entonces necesito informacion sobre los rios']) {
+			final r = await rag.generarRespuestaFundamentada(pregunta, 4);
+			expect(r.fuenteEncontrada, isTrue);
+			expect(r.textoRespuesta, r.fragmentoAsociado!.explicacionParaGrado(4));
+			expect(r.generadoPorIA, isFalse);
+		}
+		expect(motor.pregunta, isEmpty);
+		expect(ServicioRAG.esSolicitudGeneral('¿Por qué los ríos tienen curvas?'), isFalse);
+		expect(ServicioRAG.esSolicitudGeneral('¿Y eso?'), isFalse);
+	});
+
+	test('palabras de cortesía no admiten temas sin respaldo', () async {
+		final c = ControladorTutor();
+		final r = await c.procesarConsulta('entonces necesito informacion sobre videojuegos en linea');
+		expect(r.fuenteEncontrada, isFalse);
+	});
+	test('pregunta natural sobre ríos recupera igual que el tema solo', () {
+		final almacen = AlmacenVectoresChroma();
+		final corta = almacen.calcularMaximaSimilitud('rios');
+		final natural = almacen.calcularMaximaSimilitud('entonces necesito informacion sobre los rios');
+		expect(natural, closeTo(corta, 0.00001));
+	});
 	test('silenciar detiene lectura y permite reproducción manual', () async {
 		final audio = AudioControlado();
 		final c = ControladorTutor(servicioAudio: audio);
