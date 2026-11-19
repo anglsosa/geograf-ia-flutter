@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geograf_ia/controllers/controlador_configuracion.dart';
 import 'package:geograf_ia/controllers/controlador_tutor.dart';
@@ -10,6 +11,21 @@ import 'package:geograf_ia/models/modelos.dart';
 import 'package:geograf_ia/services/servicio_autenticacion.dart';
 import 'package:geograf_ia/services/servicio_conversacion.dart';
 import 'package:geograf_ia/services/servicios.dart';
+
+class AudioControlado extends ServicioAudio {
+	Completer<void>? fin;
+	int lecturas = 0;
+	@override
+	Future<void> textoAVoz(String texto, double velocidad) {
+		lecturas++;
+		fin = Completer<void>();
+		return fin!.future;
+	}
+	@override
+	Future<void> detenerAudio() async {
+		if (fin != null && !fin!.isCompleted) fin!.complete();
+	}
+}
 
 class MotorRegistro extends MotorLLMLocal {
 	String pregunta = '';
@@ -29,6 +45,31 @@ class MotorRegistro extends MotorLLMLocal {
 }
 
 void main() {
+	test('silenciar detiene lectura y permite reproducción manual', () async {
+		final audio = AudioControlado();
+		final c = ControladorTutor(servicioAudio: audio);
+		final lectura = c.reproducirRespuestaVoz('Respuesta');
+		await Future<void>.delayed(Duration.zero);
+		expect(c.estaLeyendo('Respuesta'), isTrue);
+		await c.alternarLecturaAutomatica();
+		await lectura;
+		expect(c.configuracion.vozAutomatica, isFalse);
+		expect(c.estaLeyendo('Respuesta'), isFalse);
+		final manual = c.reproducirRespuestaVoz('Respuesta');
+		await Future<void>.delayed(Duration.zero);
+		expect(c.estaLeyendo('Respuesta'), isTrue);
+		await c.detenerLectura();
+		await manual;
+		expect(audio.lecturas, 2);
+	});
+
+	test('lectura automática apagada no reproduce nuevas respuestas', () async {
+		final audio = AudioControlado();
+		final c = ControladorTutor(servicioAudio: audio,
+			configuracionAula: ConfiguracionAula(vozAutomatica: false));
+		await c.enviarPregunta('¿Por qué llueve?');
+		expect(audio.lecturas, 0);
+	});
 	test('Sanear rechaza texto muy corto y recorta el largo excesivo', () {
 		expect(ControladorTutor.sanear('  a '), isNull);
 		expect(

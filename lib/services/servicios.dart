@@ -1131,6 +1131,8 @@ class ServicioAudio {
 	bool _ttsInicializado = false;
 	String _vozSeleccionada = 'Voz Neuronal Español (es-MX)';
 	bool _reproduciendo = false;
+	Completer<void>? _finLectura;
+	int _versionLectura = 0;
 
 	bool get estaListoTTS => _estaListoTTS;
 	bool get estaListoSTT => _estaListoSTT;
@@ -1473,27 +1475,42 @@ class ServicioAudio {
 		if (!_estaListoTTS || texto.trim().isEmpty) {
 			return;
 		}
+		await detenerAudio();
+		final version = _versionLectura;
+		final fin = Completer<void>();
+		_finLectura = fin;
 		_reproduciendo = true;
 		try {
 			if (!_ttsInicializado) {
 				await _inicializarMotorTTS();
 			}
 			if (_tts != null) {
+				if (version != _versionLectura) return;
+				void terminar() { if (!fin.isCompleted) fin.complete(); }
+				_tts!.setCompletionHandler(terminar);
+				_tts!.setCancelHandler(terminar);
+				_tts!.setErrorHandler((_) => terminar());
 				// Velocidad fluida y natural (sin arrastrar silabas)
 				final double rate = (velocidad * 0.88).clamp(0.5, 1.2);
 				await _tts!.setSpeechRate(rate);
-				await _tts!.stop();
-				await _tts!.speak(texto);
+				if (version != _versionLectura) return;
+				final resultado = await _tts!.speak(texto);
+				if (resultado == 1) await fin.future;
 			}
 		} catch (_) {
 			// Respaldo silencioso si el emulador no tiene tarjeta de audio
 		}
-		final int duracionMs = (900 / velocidad.clamp(0.6, 1.4)).round();
-		await Future<void>.delayed(Duration(milliseconds: duracionMs));
-		_reproduciendo = false;
+		if (version == _versionLectura) {
+			_reproduciendo = false;
+			_finLectura = null;
+		}
 	}
 
 	Future<void> detenerAudio() async {
+		_versionLectura++;
+		final fin = _finLectura;
+		if (fin != null && !fin.isCompleted) fin.complete();
+		_finLectura = null;
 		_reproduciendo = false;
 		try {
 			await _tts?.stop();

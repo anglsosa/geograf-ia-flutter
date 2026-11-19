@@ -290,7 +290,7 @@ class ControladorTutor extends ChangeNotifier {
 	void reiniciarContextoSesion() {
 		_pipelineRAG.motorLLM.cancelarGeneracion();
 		_servicioAudio.cancelarEscucha();
-		_servicioAudio.detenerAudio();
+		unawaited(detenerLectura());
 		_cerrarConversacionActual();
 		_mensajes.clear();
 		_servicioConversacion.reiniciar();
@@ -360,6 +360,7 @@ class ControladorTutor extends ChangeNotifier {
 			return;
 		}
 
+		await detenerLectura();
 		_ocupado = true;
 		_registrarReciente(pregunta);
 		_mensajes.add(
@@ -448,12 +449,7 @@ class ControladorTutor extends ChangeNotifier {
 			}
 
 			if (_configuracionAula.vozAutomatica) {
-				_estadoMascota = EstadoMascota.hablando;
-				notifyListeners();
-				await _servicioAudio.textoAVoz(
-					resultado.textoRespuesta,
-					_configuracionAula.velocidadLecturaVoz,
-				);
+				await _leerRespuesta(resultado.textoRespuesta);
 			}
 		} catch (e) {
 			// Un fallo tecnico NO es lo mismo que "no esta en los libros": se le
@@ -491,7 +487,7 @@ class ControladorTutor extends ChangeNotifier {
 		_errorVoz = '';
 		_textoVozParcial = '';
 		// Callar al tutor antes de abrir el microfono, para que no se escuche a si mismo.
-		await _servicioAudio.detenerAudio();
+		await detenerLectura();
 		_estadoMascota = EstadoMascota.escuchando;
 		notifyListeners();
 
@@ -531,14 +527,42 @@ class ControladorTutor extends ChangeNotifier {
 		if (_ocupado) {
 			return;
 		}
+		await _leerRespuesta(texto);
+	}
+
+	String? _textoEnLectura;
+	int _lecturaActual = 0;
+	bool estaLeyendo(String texto) => _textoEnLectura == texto;
+
+	Future<void> detenerLectura() async {
+		_lecturaActual++;
+		_textoEnLectura = null;
+		await _servicioAudio.detenerAudio();
+		if (_estadoMascota == EstadoMascota.hablando) _estadoMascota = EstadoMascota.reposo;
+		notifyListeners();
+	}
+
+	Future<void> alternarLecturaAutomatica() async {
+		final activar = !_configuracionAula.vozAutomatica;
+		actualizarPreferencias(vozAutomatica: activar);
+		if (!activar) await detenerLectura();
+	}
+
+	Future<void> _leerRespuesta(String texto) async {
+		await detenerLectura();
+		final lectura = ++_lecturaActual;
+		_textoEnLectura = texto;
 		_estadoMascota = EstadoMascota.hablando;
 		notifyListeners();
-		await _servicioAudio.textoAVoz(
-			texto,
-			_configuracionAula.velocidadLecturaVoz,
-		);
-		_estadoMascota = EstadoMascota.reposo;
-		notifyListeners();
+		try {
+			await _servicioAudio.textoAVoz(texto, _configuracionAula.velocidadLecturaVoz);
+		} finally {
+			if (lectura == _lecturaActual) {
+				_textoEnLectura = null;
+				_estadoMascota = EstadoMascota.reposo;
+				notifyListeners();
+			}
+		}
 	}
 
 	/// Registra la respuesta del alumno al reto pedagogico de comprobacion.
@@ -657,7 +681,7 @@ class ControladorTutor extends ChangeNotifier {
 			}
 			_pipelineRAG.motorLLM.cancelarGeneracion();
 			_servicioAudio.cancelarEscucha();
-			_servicioAudio.detenerAudio();
+			unawaited(detenerLectura());
 			if (_idConversacion != idConversacion) {
 				_cerrarConversacionActual();
 			}

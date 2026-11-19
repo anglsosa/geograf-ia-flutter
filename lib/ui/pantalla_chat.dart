@@ -412,6 +412,13 @@ class _PantallaChatState extends State<PantallaChat> {
 					),
 					const SizedBox(width: 4),
 					IconButton(
+						tooltip: c.configuracion.vozAutomatica
+							? 'Silenciar lectura automática' : 'Activar lectura automática',
+						onPressed: c.alternarLecturaAutomatica,
+						icon: Icon(c.configuracion.vozAutomatica
+							? Icons.volume_up_rounded : Icons.volume_off_rounded),
+					),
+					IconButton(
 						tooltip: 'Modo llamada de voz',
 						visualDensity: VisualDensity.compact,
 						style: IconButton.styleFrom(
@@ -804,11 +811,9 @@ class _PantallaChatState extends State<PantallaChat> {
 											InkWell(
 												borderRadius:
 													BorderRadius.circular(10),
-												onTap: () =>
-													reproducirRespuestaVoz(
-														m.texto,
-													),
-												child: const Padding(
+												onTap: () => c.estaLeyendo(m.texto)
+													? c.detenerLectura() : reproducirRespuestaVoz(m.texto),
+												child: Padding(
 													padding:
 														EdgeInsets.symmetric(
 															horizontal: 6,
@@ -819,15 +824,14 @@ class _PantallaChatState extends State<PantallaChat> {
 															MainAxisSize.min,
 														children: <Widget>[
 															Icon(
-																Icons
-																	.volume_up_rounded,
+																c.estaLeyendo(m.texto) ? Icons.stop_rounded : Icons.play_arrow_rounded,
 																size: 16,
 																color: Paleta
 																	.verdeBosque,
 															),
 															SizedBox(width: 4),
 															Text(
-																'Escuchar',
+																c.estaLeyendo(m.texto) ? 'Detener' : 'Reproducir',
 																style:
 																	TextStyle(
 																		fontSize:
