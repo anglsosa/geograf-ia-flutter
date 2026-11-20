@@ -1330,6 +1330,8 @@ class ServicioAudio {
 	SpeechToText? _stt;
 	bool _sttDisponible = false;
 	bool _escuchando = false;
+	bool _capturaEnCurso = false;
+	bool _preferirEnDispositivo = true;
 	Completer<String>? _sesionVoz;
 	String _textoSesion = '';
 	String? _errorSesion;
@@ -1364,9 +1366,9 @@ class ServicioAudio {
 	}
 
 	void _alErrorVoz(SpeechRecognitionError error) {
-		_errorSesion = error.errorMsg;
 		final Completer<String>? sesion = _sesionVoz;
 		if (sesion != null && !sesion.isCompleted) {
+			_errorSesion = error.errorMsg;
 			sesion.complete(_textoSesion);
 		}
 	}
@@ -1444,9 +1446,11 @@ class ServicioAudio {
 		Duration pausaSilencio = const Duration(seconds: 3),
 	}) async {
 		_ultimoErrorVoz = '';
-		if (!_estaListoSTT || _escuchando) {
+		if (!_estaListoSTT || _capturaEnCurso) {
 			return '';
 		}
+		_capturaEnCurso = true;
+		try {
 		if (!await _prepararSTT()) {
 			return '';
 		}
@@ -1465,16 +1469,17 @@ class ServicioAudio {
 
 		String texto = await _escucharUnaVez(
 			idioma: idioma,
-			enDispositivo: true,
+			enDispositivo: _preferirEnDispositivo,
 			alParcial: alParcial,
 			maxima: duracionMaxima,
 			pausa: pausaSilencio,
 		);
 
 		// Sin paquete de espanol "en el dispositivo": reintentar con el servicio normal.
-		if (texto.isEmpty &&
+		if (texto.isEmpty && _preferirEnDispositivo &&
 			(_errorSesion == 'error_language_not_supported' ||
 				_errorSesion == 'error_language_unavailable')) {
+			_preferirEnDispositivo = false;
 			texto = await _escucharUnaVez(
 				idioma: idioma,
 				enDispositivo: false,
@@ -1490,6 +1495,9 @@ class ServicioAudio {
 				_mensajeErrorVoz(_errorSesion ?? 'error_no_match');
 		}
 		return texto;
+		} finally {
+			_capturaEnCurso = false;
+		}
 	}
 
 	Future<String> _escucharUnaVez({
@@ -1504,12 +1512,17 @@ class ServicioAudio {
 		_errorSesion = null;
 		_textoSesion = '';
 		_escuchando = true;
+		bool pausaReducida = false;
 		try {
 			await _stt!.listen(
 				onResult: (SpeechRecognitionResult r) {
 					if (!identical(fin, _sesionVoz) || fin.isCompleted) return;
 					_textoSesion = r.recognizedWords;
 					if (_textoSesion.isNotEmpty) {
+						if (!pausaReducida && !r.finalResult) {
+							pausaReducida = true;
+							try { _stt!.changePauseFor(pausa); } catch (_) {}
+						}
 						alParcial?.call(_textoSesion);
 					}
 					if (r.finalResult && !fin.isCompleted) {
@@ -1522,7 +1535,8 @@ class ServicioAudio {
 					cancelOnError: true,
 					listenMode: ListenMode.dictation,
 					listenFor: maxima,
-					pauseFor: pausa,
+					// No confundir demora de la primera transcripción con silencio.
+					pauseFor: maxima,
 					localeId: idioma,
 				),
 			);
@@ -1535,11 +1549,12 @@ class ServicioAudio {
 			_errorSesion ??= 'error_client';
 			return _textoSesion;
 		} finally {
-			_escuchando = false;
 			_sesionVoz = null;
 			try {
-				await _stt?.stop();
+				await _stt?.cancel();
 			} catch (_) {}
+			await Future<void>.delayed(const Duration(milliseconds: 200));
+			_escuchando = false;
 		}
 	}
 

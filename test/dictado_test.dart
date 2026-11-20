@@ -6,6 +6,7 @@ import 'package:geograf_ia/controllers/controlador_tutor.dart';
 import 'package:geograf_ia/models/modelos.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
+import 'package:speech_to_text/speech_recognition_error.dart';
 
 class ReconocedorPrueba extends SpeechToText {
 	ReconocedorPrueba() : super.withMethodChannel();
@@ -13,10 +14,17 @@ class ReconocedorPrueba extends SpeechToText {
 	void Function(SpeechRecognitionResult)? resultado;
 	Completer<void> inicio = Completer<void>();
 	bool disponible = true;
+	bool sinPaqueteOffline = false;
+	void Function(SpeechRecognitionError)? error;
+	final opciones = <SpeechListenOptions>[];
+	final pausas = <Duration>[];
+	Completer<void> inicioNormal = Completer<void>();
+	int cancelaciones = 0;
 	@override
 	Future<bool> initialize({onError, onStatus, debugLogging = false,
 		Duration finalTimeout = const Duration(seconds: 2), options}) async {
 		estado = onStatus;
+		error = onError;
 		return disponible;
 	}
 	@override
@@ -26,17 +34,54 @@ class ReconocedorPrueba extends SpeechToText {
 		cancelOnError = false, partialResults = true, onDevice = false,
 		listenMode = ListenMode.confirmation, sampleRate = 0, listenOptions}) async {
 		resultado = onResult;
+		if (listenOptions != null) opciones.add(listenOptions);
 		if (!inicio.isCompleted) inicio.complete();
+		if (sinPaqueteOffline && listenOptions?.onDevice == true) {
+			scheduleMicrotask(() => error?.call(SpeechRecognitionError('error_language_unavailable', true)));
+		} else if (listenOptions?.onDevice == false && !inicioNormal.isCompleted) {
+			inicioNormal.complete();
+		}
 	}
 	@override
 	Future<void> stop() async {}
 	@override
-	Future<void> cancel() async {}
+	Future<void> cancel() async { cancelaciones++; }
+	@override
+	void changePauseFor(Duration pausa) { pausas.add(pausa); }
 	void emitir(String texto, {bool finalizado = false}) => resultado?.call(
 		SpeechRecognitionResult([SpeechRecognitionWords(texto, null, 1)], finalizado ? 2 : 0));
 }
 
 void main() {
+	test('espera primer texto y libera el reconocedor en cuatro capturas seguidas', () async {
+		final r = ReconocedorPrueba();
+		final audio = ServicioAudio(estaListoTTS: false, reconocedor: r);
+		for (int i = 0; i < 4; i++) {
+			r.inicio = Completer<void>();
+			final captura = audio.escucharPregunta();
+			await r.inicio.future;
+			expect(r.opciones.last.pauseFor, const Duration(seconds: 20));
+			r.emitir('pregunta $i');
+			expect(r.pausas.last, const Duration(seconds: 3));
+			r.emitir('pregunta $i completa', finalizado: true);
+			expect(await captura, 'pregunta $i completa');
+			expect(audio.escuchando, isFalse);
+		}
+		expect(r.cancelaciones, 4);
+	});
+
+	test('no repite el motor offline si ya informó que falta el idioma', () async {
+		final r = ReconocedorPrueba()..sinPaqueteOffline = true;
+		final audio = ServicioAudio(estaListoTTS: false, reconocedor: r);
+		for (int i = 0; i < 2; i++) {
+			r.inicioNormal = Completer<void>();
+			final captura = audio.escucharPregunta();
+			await r.inicioNormal.future;
+			r.emitir('ríos', finalizado: true);
+			expect(await captura, 'ríos');
+		}
+		expect(r.opciones.map((o) => o.onDevice).toList(), [true, false, false]);
+	});
 	test('dictado final llega al chat como pregunta y obtiene respuesta', () async {
 		final reconocedor = ReconocedorPrueba();
 		final audio = ServicioAudio(estaListoTTS: false, reconocedor: reconocedor);
