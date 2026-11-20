@@ -65,6 +65,69 @@ class FragmentoSEP {
 		return textoContenido.trim();
 	}
 
+	/// Un fragmento puede abarcar mas temas de los que la respuesta alcanzo a
+	/// explicar (p. ej. "Rios y lagos de Mexico" respondido solo sobre rios).
+	/// Preguntar por lo que nunca se explico desanima al nino, asi que el reto
+	/// solo se habilita si la respuesta que acaba de leer sustenta la opcion
+	/// correcta.
+	bool retoRespaldadoPor(String respuestaMostrada) {
+		if (preguntaComprobacion.trim().isEmpty ||
+			indiceRespuestaCorrecta < 0 ||
+			indiceRespuestaCorrecta >= opcionesComprobacion.length) {
+			return false;
+		}
+		final Set<String> leido = _raicesSignificativas(respuestaMostrada);
+		if (leido.isEmpty) {
+			return false;
+		}
+		final Set<String> correcta =
+			_raicesSignificativas(opcionesComprobacion[indiceRespuestaCorrecta]);
+		if (correcta.isEmpty || !correcta.every(leido.contains)) {
+			return false;
+		}
+		// Descarta coincidencias casuales: el tema por el que se pregunta
+		// tambien debe haber aparecido en la explicacion.
+		return _raicesSignificativas(preguntaComprobacion).any(leido.contains);
+	}
+
+	static const Set<String> _palabrasVaciasReto = <String>{
+		'que', 'los', 'las', 'del', 'por', 'con', 'una', 'uno', 'unos', 'unas',
+		'para', 'como', 'mas', 'muy', 'son', 'ser', 'sus', 'sin', 'pero', 'cual',
+		'cuale', 'donde', 'cuando', 'porque', 'hay', 'tiene', 'entre', 'sobre',
+		'desde', 'hacia', 'cuanto', 'cuanta', 'esta', 'este', 'esto',
+	};
+
+	/// Normaliza acentos, descarta palabras vacias y reduce el plural para que
+	/// "oceanos" en la opcion empate con "oceano" en la respuesta.
+	static Set<String> _raicesSignificativas(String texto) {
+		final String limpio = texto
+			.toLowerCase()
+			.replaceAll('á', 'a')
+			.replaceAll('é', 'e')
+			.replaceAll('í', 'i')
+			.replaceAll('ó', 'o')
+			.replaceAll('ú', 'u')
+			.replaceAll('ü', 'u')
+			.replaceAll('ñ', 'n')
+			.replaceAll(RegExp(r'[^a-z0-9\s]'), ' ');
+		final Set<String> raices = <String>{};
+		for (final String palabra in limpio.split(RegExp(r'\s+'))) {
+			final bool tieneDigito = palabra.contains(RegExp(r'[0-9]'));
+			if (palabra.isEmpty || (!tieneDigito && palabra.length < 3)) {
+				continue;
+			}
+			final String raiz =
+				(!tieneDigito && palabra.length > 3 && palabra.endsWith('s'))
+					? palabra.substring(0, palabra.length - 1)
+					: palabra;
+			if (_palabrasVaciasReto.contains(raiz)) {
+				continue;
+			}
+			raices.add(raiz);
+		}
+		return raices;
+	}
+
 	factory FragmentoSEP.desdeJson(Map<String, dynamic> json) {
 		return FragmentoSEP(
 			idFragmento: (json['idFragmento'] ?? '').toString(),

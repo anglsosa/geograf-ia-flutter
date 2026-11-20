@@ -197,6 +197,7 @@ class ControladorTutor extends ChangeNotifier {
 	String _textoVozParcial = '';
 	String _errorVoz = '';
 	int _consultasExitosasEnSesion = 0;
+	int _consultasDesdeUltimoReto = 0;
 	int _retosCorrectos = 0;
 	int _retosTotales = 0;
 
@@ -428,11 +429,14 @@ class ControladorTutor extends ChangeNotifier {
 				!resultado.esConversacional &&
 				resultado.fragmentoAsociado != null) {
 				_consultasExitosasEnSesion++;
+				_consultasDesdeUltimoReto++;
 				final FragmentoSEP frag = resultado.fragmentoAsociado!;
-				if (frag.preguntaComprobacion.isNotEmpty &&
-					_consultasExitosasEnSesion %
-							Reglas.consultasParaRetoPedagogico ==
-						0) {
+				// Si el reto no lo sustenta la respuesta mostrada se omite y la
+				// cuenta sigue corriendo, para intentarlo en la siguiente consulta.
+				if (_consultasDesdeUltimoReto >=
+						Reglas.consultasParaRetoPedagogico &&
+					frag.retoRespaldadoPor(resultado.textoRespuesta)) {
+					_consultasDesdeUltimoReto = 0;
 					_mensajes.add(
 						MensajeChat(
 							id: 'msg-${DateTime.now().microsecondsSinceEpoch}-quiz',

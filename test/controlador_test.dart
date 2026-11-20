@@ -225,6 +225,82 @@ void main() {
 		expect(r.textoRespuesta, Reglas.mensajeConsultaAlMaestro);
 	});
 
+	group('Reto pedagogico anclado a la respuesta mostrada', () {
+		const FragmentoSEP riosYLagos = FragmentoSEP(
+			idFragmento: 'SEP-GEO-28',
+			gradoNivel: 5,
+			nombreLibro: 'Libro SEP Geografía',
+			bloqueTema: 'Relieve, agua y clima · Ríos y lagos de México',
+			numeroPagina: 60,
+			textoContenido: 'Ríos y lagos de México.',
+			preguntaComprobacion: '¿Cuál es el lago más grande de México?',
+			opcionesComprobacion: <String>['Pátzcuaro', 'Chapala', 'Cuitzeo'],
+			indiceRespuestaCorrecta: 1,
+		);
+
+		test('Se omite si la respuesta nunca menciona la opcion correcta', () {
+			expect(
+				riosYLagos.retoRespaldadoPor(
+					'Los ríos se forman cuando las aguas del suelo y la lluvia se '
+					'juntan para fluir hacia el mar. Los ríos son importantes porque '
+					'proporcionan agua y transporte.',
+				),
+				isFalse,
+			);
+		});
+
+		test('Se muestra si la respuesta si explico la opcion correcta', () {
+			expect(
+				riosYLagos.retoRespaldadoPor(
+					'El lago más grande de México es el lago de Chapala, en Jalisco.',
+				),
+				isTrue,
+			);
+		});
+
+		test('Mencionar el tema sin la respuesta correcta no basta', () {
+			expect(
+				riosYLagos.retoRespaldadoPor(
+					'En México hay lagos muy grandes repartidos por todo el país.',
+				),
+				isFalse,
+			);
+		});
+
+		test('El plural de la opcion empata con el singular de la respuesta', () {
+			const FragmentoSEP aguas = FragmentoSEP(
+				idFragmento: 'SEP-GEO-27',
+				gradoNivel: 4,
+				nombreLibro: 'Libro SEP Geografía',
+				bloqueTema: 'Relieve, agua y clima · Las aguas del planeta',
+				numeroPagina: 58,
+				textoContenido: 'Las aguas del planeta.',
+				preguntaComprobacion: '¿Dónde está la mayor parte del agua de la Tierra?',
+				opcionesComprobacion: <String>[
+					'En los ríos', 'En los océanos', 'En los lagos'],
+				indiceRespuestaCorrecta: 1,
+			);
+			expect(
+				aguas.retoRespaldadoPor(
+					'Casi toda el agua de la Tierra está en el océano y es salada.',
+				),
+				isTrue,
+			);
+		});
+
+		test('Un fragmento sin reto definido nunca lo habilita', () {
+			const FragmentoSEP sinReto = FragmentoSEP(
+				idFragmento: 'SEP-GEO-99',
+				gradoNivel: 4,
+				nombreLibro: 'Libro SEP Geografía',
+				bloqueTema: 'Bloque 1',
+				numeroPagina: 10,
+				textoContenido: 'Contenido.',
+			);
+			expect(sinReto.retoRespaldadoPor('Cualquier respuesta.'), isFalse);
+		});
+	});
+
 	group('Conversacion contextual', () {
 		test('un tema explícito con y no exige un tema anterior', () async {
 			final r = await ControladorTutor().procesarConsulta('¿Y los ríos?');
