@@ -1220,9 +1220,11 @@ class ServicioAudio {
 	ServicioAudio({
 		bool estaListoTTS = true,
 		bool estaListoSTT = true,
+		SpeechToText? reconocedor,
 	})  : _estaListoTTS = estaListoTTS,
-		_estaListoSTT = estaListoSTT {
-		_inicializarMotorTTS();
+		_estaListoSTT = estaListoSTT,
+		_stt = reconocedor {
+		if (estaListoTTS) _inicializarMotorTTS();
 	}
 
 	final bool _estaListoTTS;
@@ -1374,9 +1376,9 @@ class ServicioAudio {
 			return;
 		}
 		// El resultado final suele llegar justo antes de "done"; se da un margen.
+		final Completer<String>? sesion = _sesionVoz;
 		Future<void>.delayed(const Duration(milliseconds: 400), () {
-			final Completer<String>? sesion = _sesionVoz;
-			if (sesion != null && !sesion.isCompleted) {
+			if (sesion != null && identical(sesion, _sesionVoz) && !sesion.isCompleted) {
 				sesion.complete(_textoSesion);
 			}
 		});
@@ -1505,6 +1507,7 @@ class ServicioAudio {
 		try {
 			await _stt!.listen(
 				onResult: (SpeechRecognitionResult r) {
+					if (!identical(fin, _sesionVoz) || fin.isCompleted) return;
 					_textoSesion = r.recognizedWords;
 					if (_textoSesion.isNotEmpty) {
 						alParcial?.call(_textoSesion);
@@ -1542,9 +1545,18 @@ class ServicioAudio {
 
 	/// El nino terminó de hablar: entrega de inmediato lo que se alcanzo a entender.
 	Future<void> detenerEscucha() async {
+		final sesion = _sesionVoz;
 		try {
 			await _stt?.stop();
 		} catch (_) {}
+		// Algunos motores no notifican done al detenerlos. Esperar el último
+		// resultado brevemente y liberar siempre la captura con el texto parcial.
+		if (sesion != null && !sesion.isCompleted) {
+			await Future<void>.delayed(const Duration(milliseconds: 500));
+			if (identical(sesion, _sesionVoz) && !sesion.isCompleted) {
+				sesion.complete(_textoSesion);
+			}
+		}
 	}
 
 	/// Cancela el microfono sin procesar lo dicho.
