@@ -6,3 +6,19 @@ build/
 .flutter-plugins-dependencies
 
 PROGRESO.md
+
+# Herramientas y configuración locales de la demostración
+.local-tools/
+.local-demo/
+android/local.properties
+android/.gradle/
+android/.kotlin/
+android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Runner/GeneratedPluginRegistrant.h
+ios/Runner/GeneratedPluginRegistrant.m
+ios/Flutter/ephemeral/
+flutter_*.log
+DEMO_LOCAL.md
+iniciar-demo.command
