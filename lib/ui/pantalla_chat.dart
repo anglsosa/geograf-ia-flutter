@@ -161,6 +161,23 @@ class _PantallaChatState extends State<PantallaChat> {
 				child: Column(
 					children: <Widget>[
 						_construirBarraSuperior(context, c),
+						Wrap(
+							spacing: 8,
+							children: [
+								TextButton.icon(
+									onPressed: c.alternarLecturaAutomatica,
+									icon: Icon(c.configuracion.vozAutomatica
+										? Icons.volume_off_rounded : Icons.volume_up_rounded),
+									label: Text(c.configuracion.vozAutomatica
+										? 'Silenciar voz' : 'Activar voz'),
+								),
+								if (c.lecturaActiva) TextButton.icon(
+									onPressed: c.detenerLectura,
+									icon: const Icon(Icons.stop_rounded),
+									label: const Text('Detener lectura'),
+								),
+							],
+						),
 						Expanded(
 							child: c.mensajes.isEmpty
 								? _construirBienvenidaHero(context, c)
@@ -355,7 +372,7 @@ class _PantallaChatState extends State<PantallaChat> {
 									),
 								),
 								Text(
-									'Offline · SEP ${c.configuracion.gradoActual}° primaria',
+									'Offline · ${Reglas.identificadorCompilacion}',
 									maxLines: 1,
 									overflow: TextOverflow.ellipsis,
 									style: const TextStyle(
@@ -411,13 +428,6 @@ class _PantallaChatState extends State<PantallaChat> {
 						),
 					),
 					const SizedBox(width: 4),
-					IconButton(
-						tooltip: c.configuracion.vozAutomatica
-							? 'Silenciar lectura automática' : 'Activar lectura automática',
-						onPressed: c.alternarLecturaAutomatica,
-						icon: Icon(c.configuracion.vozAutomatica
-							? Icons.volume_up_rounded : Icons.volume_off_rounded),
-					),
 					IconButton(
 						tooltip: 'Modo llamada de voz',
 						visualDensity: VisualDensity.compact,

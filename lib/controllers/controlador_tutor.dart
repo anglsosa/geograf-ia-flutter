@@ -531,6 +531,7 @@ class ControladorTutor extends ChangeNotifier {
 	}
 
 	String? _textoEnLectura;
+	bool get lecturaActiva => _textoEnLectura != null;
 	int _lecturaActual = 0;
 	bool estaLeyendo(String texto) => _textoEnLectura == texto;
 

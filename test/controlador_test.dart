@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geograf_ia/controllers/controlador_configuracion.dart';
 import 'package:geograf_ia/controllers/controlador_tutor.dart';
 import 'package:geograf_ia/core/hash_seguro.dart';
 import 'package:geograf_ia/core/reglas.dart';
+import 'package:geograf_ia/core/tema.dart';
 import 'package:geograf_ia/data/esquema_sql.dart';
 import 'package:geograf_ia/data/persistencia.dart';
 import 'package:geograf_ia/models/entidades_db.dart';
@@ -11,6 +13,7 @@ import 'package:geograf_ia/models/modelos.dart';
 import 'package:geograf_ia/services/servicio_autenticacion.dart';
 import 'package:geograf_ia/services/servicio_conversacion.dart';
 import 'package:geograf_ia/services/servicios.dart';
+import 'package:geograf_ia/ui/pantalla_chat.dart';
 
 class AudioControlado extends ServicioAudio {
 	Completer<void>? fin;
@@ -75,6 +78,37 @@ class MotorAsistido extends MotorRegistro {
 }
 
 void main() {
+	testWidgets('control de silencio visible en teléfono y cambia su estado', (tester) async {
+		tester.view.physicalSize = const Size(390, 844);
+		tester.view.devicePixelRatio = 1;
+		addTearDown(tester.view.resetPhysicalSize);
+		addTearDown(tester.view.resetDevicePixelRatio);
+		final c = ControladorTutor(servicioAudio:
+			ServicioAudio(estaListoTTS: false, estaListoSTT: false));
+		await c.enviarPregunta('rios');
+		await tester.pumpWidget(MaterialApp(theme: construirTema(), home: PantallaChat(controlador: c)));
+		expect(find.text('Silenciar voz'), findsOneWidget);
+		await tester.tap(find.text('Silenciar voz'));
+		await tester.pump();
+		expect(find.text('Activar voz'), findsOneWidget);
+		expect(c.configuracion.vozAutomatica, isFalse);
+		await tester.pumpWidget(const SizedBox.shrink());
+	});
+	test('Los Rios con mayúsculas recupera ríos y evita generar otra temática', () async {
+		final motor = MotorRegistro();
+		final rag = ServicioRAG(motorLLM: motor);
+		String? tema;
+		for (final pregunta in ['necesito información sobre Los Rios',
+			'NECESITO INFORMACIÓN SOBRE LOS RÍOS', 'necesito información sobre los ríos']) {
+			final r = await rag.generarRespuestaFundamentada(pregunta, 4);
+			expect(r.fuenteEncontrada, isTrue);
+			tema ??= r.fragmentoAsociado?.idFragmento;
+			expect(r.fragmentoAsociado?.idFragmento, tema);
+			expect(tema, isIn(['SEP-GEO-03', 'SEP-GEO-28']));
+			expect(r.generadoPorIA, isFalse);
+		}
+		expect(motor.pregunta, isEmpty);
+	});
 	group('Recuperación asistida y revisión de respaldo', () {
 		const parafrasis = '¿Adónde viajan las venas azules del paisaje?';
 		test('reformula una vez sin sustituir la pregunta original', () async {

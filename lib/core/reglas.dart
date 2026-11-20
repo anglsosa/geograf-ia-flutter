@@ -2,6 +2,8 @@
 /// Ninguna pantalla ni controlador debe usar valores magicos fuera de esta clase.
 class Reglas {
 	Reglas._();
+	static const identificadorCompilacion = String.fromEnvironment(
+		'APP_BUILD', defaultValue: 'desarrollo');
 
 	// RF-08: Escala fija de grados escolares soportados (Primaria Alta SEP).
 	static const List<int> gradosSoportados = <int>[4, 5, 6];
